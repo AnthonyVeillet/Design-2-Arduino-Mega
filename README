@@ -1,0 +1,222 @@
+--------------------------------------------------------------------
+Version simple du README ici, mais une version plus complète suit plus bas.
+--------------------------------------------------------------------
+
+# ⚡ Guide rapide — Acquisition ADC (Windows)
+
+1) Installer VS Code, l’extension PlatformIO IDE et Python 3.x (en cochant “Add Python to PATH”)  
+2) Cloner le repository GitHub et ouvrir le dossier du projet dans VS Code  
+3) Compiler le projet : ✔ Build (ou Ctrl + Alt + B)  
+4) Téléverser le code sur l’Arduino Mega : → Upload (ou Ctrl + Alt + U)  
+5) Brancher l’Arduino Mega en USB  
+6) Installer les librairies Python nécessaires (une seule fois) :
+pip install pyserial numpy  
+7) Identifier le port série de l’Arduino (ex. COM6)  
+8) Lancer une acquisition :
+python tools\capture_and_analyze.py --port COM6 --fs 5000 --seconds 5  
+9) Le fichier de données est généré dans :
+captures\Echantillonnage5000.csv  
+10) Lire le verdict affiché dans le terminal pour savoir si la limite d’échantillonnage est atteinte  
+
+➡️ Si une étape ne fonctionne pas ou n’est pas claire, se référer à la version détaillée ci-dessous.
+
+
+
+
+
+
+--------------------------------------------------------------------
+Version longue du README
+--------------------------------------------------------------------
+
+
+# Arduino Mega 2560 — Échantillonnage ADC 10 bits  
+(Windows • VS Code • PlatformIO • Python)
+
+Ce projet permet de tester la **fréquence d’échantillonnage maximale exploitable** du ADC 10 bits d’un **Arduino Mega 2560**, d’acquérir les données au laboratoire via USB (Serial), de générer automatiquement des fichiers `EchantillonnageX.csv` et d’analyser si les variations de tension entre échantillons sont supérieures ou non à **0.005 V**.
+
+IMPORTANT  
+L’Arduino ne peut pas créer de fichiers directement sur l’ordinateur. Il envoie les données par USB (Serial) et un script Python côté Windows s’occupe de l’enregistrement et de l’analyse.
+
+--------------------------------------------------------------------
+
+PRÉREQUIS (WINDOWS)
+
+Avant de commencer, installer :
+- VS Code : https://code.visualstudio.com/
+- Python 3.x : https://www.python.org/downloads/windows/  
+  (cocher “Add Python to PATH” pendant l’installation)
+- Arduino Mega 2560 + câble USB
+
+--------------------------------------------------------------------
+
+1) INSTALLER PLATFORMIO DANS VS CODE
+
+1. Ouvrir VS Code
+2. Appuyer sur Ctrl + Shift + X (Extensions)
+3. Rechercher “PlatformIO IDE”
+4. Cliquer sur Install
+5. Attendre la fin de l’installation
+
+Une icône PlatformIO (petit alien) apparaît dans la barre de gauche.
+
+--------------------------------------------------------------------
+
+2) RÉCUPÉRER LE PROJET (CLONE / PULL DU REPO)
+
+Dans VS Code :
+1. Ctrl + Shift + P
+2. Taper “Git: Clone”
+3. Coller l’URL du repository GitHub
+4. Choisir un dossier sur l’ordinateur
+5. Cliquer sur Open lorsque VS Code le propose
+
+Le dossier ouvert doit contenir :
+- platformio.ini
+- src/
+- include/
+- tools/
+
+--------------------------------------------------------------------
+
+3) OUVRIR LE PROJET DANS PLATFORMIO
+
+- Ouvrir le dossier du projet dans VS Code
+- PlatformIO détecte automatiquement le projet grâce au fichier platformio.ini
+- La carte ciblée est : Arduino Mega 2560
+
+Aucune configuration supplémentaire n’est nécessaire.
+
+--------------------------------------------------------------------
+
+4) COMPILER LE CODE (BUILD)
+
+Dans VS Code :
+- Cliquer sur ✔ Build (barre du bas)
+OU
+- Ctrl + Alt + B
+
+Si tout est correct, le message SUCCESS apparaît.
+
+--------------------------------------------------------------------
+
+5) TÉLÉVERSER LE CODE SUR L’ARDUINO
+
+1. Brancher l’Arduino Mega à l’ordinateur avec le câble USB
+2. Dans VS Code :
+   - Cliquer sur → Upload
+   OU
+   - Ctrl + Alt + U
+
+PlatformIO détecte automatiquement le port COM et téléverse le code.
+
+--------------------------------------------------------------------
+
+6) VÉRIFICATION RAPIDE (OPTIONNEL)
+
+Dans VS Code :
+- Ouvrir le Serial Monitor (icône prise)
+
+Message attendu :
+#READY
+Commands:
+  FS=xxxx
+  START
+  STOP
+  INFO
+
+ATTENTION  
+Après la commande START, les données envoyées sont binaires.  
+Le Serial Monitor n’est PAS conçu pour lire les données ADC.  
+L’acquisition doit se faire avec le script Python.
+
+--------------------------------------------------------------------
+
+7) INSTALLER LES LIBRAIRIES PYTHON (UNE SEULE FOIS)
+
+Ouvrir PowerShell dans le dossier du projet et exécuter :
+
+pip install pyserial numpy
+
+--------------------------------------------------------------------
+
+8) ACQUISITION ET ANALYSE DES DONNÉES ADC
+
+Le script d’acquisition se trouve ici :
+tools\capture_and_analyze.py
+
+--------------------------------------------------------------------
+
+TROUVER LE PORT COM
+
+Sous Windows, le port est généralement COM3, COM4, COM5, etc.
+Le port est aussi affiché lors de l’upload avec PlatformIO.
+
+--------------------------------------------------------------------
+
+LANCER UNE ACQUISITION (EXEMPLE)
+
+python tools\capture_and_analyze.py --port COM6 --fs 5000 --seconds 5
+
+Ce que fait le script :
+1. Configure la fréquence d’échantillonnage (FS=5000 Hz)
+2. Démarre l’ADC
+3. Capture les données pendant 5 secondes
+4. Arrête l’acquisition
+5. Crée un fichier :
+   captures\Echantillonnage5000.csv
+6. Analyse automatiquement les variations de tension entre échantillons
+
+--------------------------------------------------------------------
+
+PARAMÈTRES IMPORTANTS DU SCRIPT
+
+- --port : port série de l’Arduino (ex : COM6)
+- --fs : fréquence d’échantillonnage en Hz
+- --seconds : durée de capture
+- --threshold : seuil de variation (par défaut 0.005 V)
+- --percentile : critère statistique (par défaut 95)
+
+Exemple :
+python tools\capture_and_analyze.py --port COM6 --fs 20000 --seconds 3
+
+--------------------------------------------------------------------
+
+WORKFLOW RECOMMANDÉ AU LABORATOIRE
+
+1. Compiler le projet (une fois)
+2. Téléverser le code sur l’Arduino (une fois)
+3. Tester plusieurs fréquences :
+   - 1 kHz
+   - 5 kHz
+   - 10 kHz
+   - 20 kHz
+4. Pour chaque fréquence :
+   - lancer le script Python
+   - récupérer le fichier CSV
+   - noter si la limite d’échantillonnage est atteinte
+
+--------------------------------------------------------------------
+
+NOTES IMPORTANTES
+
+- La précision dépend fortement de la référence de tension (Vref) et du bruit.
+- À haute fréquence, l’USB/Serial peut devenir un facteur limitant.
+- L’analyse automatique évite toute vérification manuelle des données.
+
+--------------------------------------------------------------------
+
+FAQ (WINDOWS)
+
+- Caractères étranges dans le Serial Monitor : normal, données binaires.
+- Python non reconnu : Python n’est pas dans le PATH, réinstaller Python correctement.
+- Port COM qui change : comportement normal sous Windows.
+
+--------------------------------------------------------------------
+
+RÉSUMÉ
+
+- VS Code + PlatformIO : compilation et upload Arduino
+- Python : acquisition et analyse des données
+- Aucun environnement spécial requis
+- Procédure simple et reproductible pour le laboratoire
