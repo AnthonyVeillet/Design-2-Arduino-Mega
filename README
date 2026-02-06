@@ -8,6 +8,24 @@ Version simple du README ici, mais une version plus complète suit plus bas.
 2) Cloner le repository GitHub et ouvrir le dossier du projet dans VS Code  
 3) Compiler le projet : ✔ Build (ou Ctrl + Alt + B)  
 4) Téléverser le code sur l’Arduino Mega : → Upload (ou Ctrl + Alt + U)  
+
+***
+Si les raccourcis ne fonctionnent pas
+✅ Ligne de commande (Windows)
+
+Dans PowerShell, placé à la racine du projet (là où est platformio.ini) :
+
+$ pio run -t upload
+
+Si pio n’est PAS reconnu
+
+(Utilise Python directement, ça marche toujours) :
+
+$ python -m platformio run -t upload
+
+(Le $ signifie que c’est une commande à exécuter dans PowerShell, ne pas le copier)
+***
+
 5) Brancher l’Arduino Mega en USB  
 6) Installer les librairies Python nécessaires (une seule fois) :
 pip install pyserial numpy  
