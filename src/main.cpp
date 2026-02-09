@@ -10,6 +10,7 @@ void setup()
   while (!Serial)
   {
   }
+  pinMode(ledPin, OUTPUT); // LED
 
   cli(); // désactiver interruptions
   pinMode(A0, INPUT);
@@ -19,23 +20,21 @@ void setup()
   setup_Timer2();
   sei(); // réactiver interruptions
 
-  pinMode(ledPin, OUTPUT); // LED
 }
 
 void loop()
 {
-  //   if (Serial.available()) {
-  //     char cmd = Serial.read();
-  //     if (cmd == 'S') {
-  //         acquisitionActive = true;
-  //         Serial.write('O');  // envoie ACK
-  //     } else if (cmd == 'E') {
-  //         acquisitionActive = false;
-  //         Serial.write('K');  // ACK stop
-  //     }
-  // }
-  // digitalWrite(13, !digitalRead(13)); // toggle LED
+    if (Serial.available()) {
+      char cmd = Serial.read();
+      if (cmd == 'S') {
+          acquisitionActive = true;
+          Serial.write('O');  // envoie ACK
+      } else if (cmd == 'E') {
+          acquisitionActive = false;
+          Serial.write('K');  // ACK stop
+      }
+  }
 
-  setNewDutyCycleValue(50);
+  // setNewDutyCycleValue(50);
   delay(10);
 }

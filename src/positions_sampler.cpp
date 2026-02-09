@@ -16,23 +16,26 @@ void setup_ADC0()
 void setup_Timer1()
 {
     // Timer 1 compare B trigger l'ADC
-    TCCR1A = 0x00;                                        // Mode normal
-    TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10); // Fréquence de 250kHz pour le compteur
-    OCR1A = 249;                                       // Compte 250 / 250000 -> 1ms -> 1kHz
-    OCR1B = 124;
-    TIMSK1 = 0; // Pas d'interrupt
+    TCCR1A = 0x00;
+    TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10); // CTC, prescaler 64
+    OCR1A = 249;      // 1 kHz si F_CPU = 16 MHz
+    TIMSK1 = (1 << OCIE1A);  // interruption Compare Match A
+}
+
+ISR(TIMER1_COMPA_vect)
+{
+    ADCSRA |= (1 << ADSC);   // démarre conversion ADC
 }
 
 ISR(ADC_vect)
 {
-    // if (!acquisitionActive)
-    // {
-    //     digitalWrite(13, !digitalRead(13)); // toggle LED
-    //     return;
-    // }
-    // adcValue = ADC;
-    // Serial.write(lowByte(adcValue));  // octet bas
-    // Serial.write(highByte(adcValue)); // octet haut
+    if (!acquisitionActive)
+    {
+        return;
+    }
+    adcValue = ADC;
+    Serial.write(lowByte(adcValue));  // octet bas
+    Serial.write(highByte(adcValue)); // octet haut
 
     digitalWrite(13, !digitalRead(13)); // toggle LED
 }
