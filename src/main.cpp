@@ -27,5 +27,5 @@ void loop()
   //     }
   // }
 
-
+  setNewDutyCycleValue(50);
 }
