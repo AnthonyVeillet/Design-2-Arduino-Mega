@@ -6,35 +6,26 @@ const int ledPin = 13; // LED intégrée
 
 void setup()
 {
-  Serial.begin(115200);
-  while (!Serial)
-  {
-  }
   pinMode(ledPin, OUTPUT); // LED
 
   cli(); // désactiver interruptions
-  pinMode(A0, INPUT);
-  setup_Timer1();
-  setup_ADC0();
-  pinMode(10, OUTPUT); // PWM pin
-  setup_Timer2();
+  setup_ADC();
+  setup_PWM();
   sei(); // réactiver interruptions
-
 }
 
 void loop()
 {
-    if (Serial.available()) {
-      char cmd = Serial.read();
-      if (cmd == 'S') {
-          acquisitionActive = true;
-          Serial.write('O');  // envoie ACK
-      } else if (cmd == 'E') {
-          acquisitionActive = false;
-          Serial.write('K');  // ACK stop
-      }
-  }
+  //   if (Serial.available()) {
+  //     char cmd = Serial.read();
+  //     if (cmd == 'S') {
+  //         acquisitionActive = true;
+  //         Serial.write('O');  // envoie ACK
+  //     } else if (cmd == 'E') {
+  //         acquisitionActive = false;
+  //         Serial.write('K');  // ACK stop
+  //     }
+  // }
 
-  // setNewDutyCycleValue(50);
-  delay(10);
+
 }

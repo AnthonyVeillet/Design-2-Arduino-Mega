@@ -1,23 +1,30 @@
 #include "PWM.h"
 #include "Arduino.h"
 
-void setup_Timer2() {
-  // Timer 2 (pour PWM)
-  TCCR2A = 0;
-  TCCR2B = 0;
-  TCCR2A = (1 << WGM20) | (1 << WGM21) | (1 << COM2A1);  // Fast PWM 8-bit non-inverseur
+void setup_PWM()
+{
+  pinMode(5, OUTPUT);
 
-  // Prescaler = 1 → compteur compte à 16 MHz
-  TCCR2B = (1 << CS20);  // CS22:0 = 001 → prescaler 1
+  // Reset Timer3
+  TCCR3A = 0;
+  TCCR3B = 0;
+  TCNT3  = 0;
 
-  // Valeur PWM initiale (0–255)
-  OCR2A = 127;  // 50% duty cycle
+  // Fast PWM avec ICR3 comme TOP (10 bits)
+  ICR3 = 1023;        // TOP = 1023 → résolution 10 bits
+  OCR3A = 511;  // duty cycle initial 50%
+
+  // Mode Fast PWM non-inverting pour OC3A
+  TCCR3A = (1 << WGM31) | (1 << COM3A1);
+  TCCR3B = (1 << WGM33) | (1 << WGM32) | (1 << CS30); // prescaler = 1 → fPWM ≈ 15.625 kHz
 }
 
-void setNewDutyCycleValue(uint8_t dutyCycle) {
-  if (dutyCycle > 100) {
+void setNewDutyCycleValue(uint8_t dutyCycle)
+{
+  if (dutyCycle > 100)
+  {
     return;
   }
-  uint8_t count = (dutyCycle * 255) / 100;
-  OCR2A = count;
+  uint16_t count = (dutyCycle * 1023) / 100;
+  OCR1B = count;
 }
