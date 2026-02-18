@@ -4,37 +4,45 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 
-PORT = 'COM4'      # adapte
-BAUD = 115200
+PORT = 'COM4'
+BAUD = 1000000
 N_SAMPLES = 2000
 
 print("Ouverture du port série...")
 ser = serial.Serial(PORT, BAUD, timeout=1)
 print("Port série ouvert")
 
-# start acquisition
 time.sleep(2)
 ser.write(b'S')
 
-data = []
+ack = ser.read(1)
+print("ACK reçu:", ack)
 
-while len(data) < N_SAMPLES:
-    print("waiting")
-    raw = ser.read(2)
-    print(raw)
-    if len(raw) == 2:
-        value = struct.unpack('<H', raw)[0]
-        data.append(value)
-        print(len(data))
+data_ch0 = []
+data_ch1 = []
 
-# stop acquisition
+while len(data_ch0) < N_SAMPLES:
+    raw = ser.read(4)   # 4 octets
+    if len(raw) == 4:
+        ch0, ch1 = struct.unpack('<HH', raw)
+        data_ch0.append(ch0)
+        data_ch1.append(ch1)
+        print(ch0)
+        print(ch1)
+
 ser.write(b'E')
+
+ack = ser.read(1)
+print("ACK reçu:", ack)
+
 ser.close()
 
-# plot
-plt.plot(data)
+# Plot
+plt.plot(data_ch0, label="A0")
+plt.plot(data_ch1, label="A1")
 plt.xlabel("Sample")
 plt.ylabel("ADC value")
-plt.title("ADC acquisition")
+plt.title("ADC acquisition - 2 channels")
+plt.legend()
 plt.grid()
 plt.show()
