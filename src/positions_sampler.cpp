@@ -40,7 +40,7 @@ void setup_ADC()
     ADMUX = (1 << REFS0);                                  // AVcc comme référence, canal sera sélectionné dynamiquement
     ADCSRA = (1 << ADEN)                                   // activer ADC
              | (1 << ADIE)                                 // activer interruption ADC
-             | (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); // prescaler 128 → ADC clock = 125 kHz
+             | (1 << ADPS2) | (1 << ADPS1);  // 64 prescaler → ADC clock = 250 kHz
 }
 
 ISR(TIMER1_COMPA_vect)
@@ -66,13 +66,8 @@ ISR(ADC_vect)
     uint16_t a0 = adcValues[0];
     uint16_t a1 = adcValues[1];
 
-    // if ((currentChannel % 2) == 0)
-    // {
-    //     sendData = true;
-    // }
-
     toggleCounter++;
-    if (toggleCounter >= 50) // divise fréquence pour LED (~1 Hz)
+    if (toggleCounter >= 5000) // divise fréquence pour LED (~1 Hz)
     {
         digitalWrite(13, !digitalRead(13));
         toggleCounter = 0;
