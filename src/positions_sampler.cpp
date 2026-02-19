@@ -63,9 +63,6 @@ ISR(ADC_vect)
     }
     adcValues[(currentChannel + 1) % 2] = ADC;
 
-    uint16_t a0 = adcValues[0];
-    uint16_t a1 = adcValues[1];
-
     toggleCounter++;
     if (toggleCounter >= 5000) // divise fréquence pour LED (~1 Hz)
     {

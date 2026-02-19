@@ -32,8 +32,11 @@ while len(data_ch0) < N_SAMPLES:
 
 ser.write(b'E')
 
-ack = ser.read(1)
-print("ACK reçu:", ack)
+while True:
+    b = ser.read(1)
+    if b == b'K':
+        print("ACK stop reçu")
+        break
 
 ser.close()
 
