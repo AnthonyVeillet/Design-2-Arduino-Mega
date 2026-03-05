@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "sampler.h"
 #include "PWM.h"
+#include "asservissement.h"
 
 const int ledPin = 13; // LED intégrée
 
@@ -19,12 +20,18 @@ void setup()
   setup_ADC();
   setup_PWM();
   sei(); // réactiver interruptions
+
+  delay(10);
+  tare();
 }
 
 void loop()
 {
-  positionVal = adcValues[ADC_POSITION_A0];
-  courantVal = adcValues[ADC_COURANT_A1];
+  cli();
+  // Accès section critique
+  positionVal = positionFiltre;
+  courantVal = courantFiltre;
+  sei();
 
   if (Serial.available())
   {
@@ -45,8 +52,8 @@ void loop()
   {
     sendData = false;
 
-    uint16_t a0 = adcValues[0];
-    uint16_t a1 = adcValues[1];
+    uint16_t a0 = positionVal;
+    uint16_t a1 = courantVal;
 
     Serial.write((uint8_t *)&a0, 2);
     Serial.write((uint8_t *)&a1, 2);
@@ -54,11 +61,14 @@ void loop()
 
   if (lastPositionVal != positionVal)
   {
+    // nouvelle position: calculer une nouvelle commande
+
     lastPositionVal = positionVal;
   }
 
   if (lastCourantVal != courantVal)
   {
+    // nouvelle position: calculer une nouvelle commande
     lastCourantVal = courantVal;
   }
 }

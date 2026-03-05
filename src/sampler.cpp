@@ -11,9 +11,23 @@ volatile bool acquisitionActive = false;
 volatile uint16_t toggleCounter = 0;
 volatile bool sendData = false;
 
+#define TAILLE_BUFFER_FILTRE_POSITION 10 // Maximum de 256
+uint16_t bufferFiltrePosition[TAILLE_BUFFER_FILTRE_POSITION] = {0};
+uint8_t indexFiltrePosition = 0;
+uint32_t  sommePosition = 0;
+volatile uint16_t positionFiltre = 0;
+
+#define TAILLE_BUFFER_FILTRE_COURANT 10 // Maximum de 256
+uint16_t bufferFiltreCourant[TAILLE_BUFFER_FILTRE_COURANT] = {0};
+uint8_t indexFiltreCourant = 0;
+uint32_t  sommeCourant = 0;
+volatile uint16_t courantFiltre = 0;
+
+void filtrePosition(uint16_t newPosition);
+void filtreCourant(uint16_t newCourant);
+
 void setup_ADC()
 {
-
     pinMode(A0, INPUT);
     pinMode(A1, INPUT);
     // -----------------------------
@@ -66,11 +80,16 @@ ISR(TIMER1_COMPA_vect)
 
 ISR(ADC_vect)
 {
-    if (!acquisitionActive)
-        return;
-
-    // stockage clair avec define
     adcValues[activeChannel] = ADC;
+
+    if (activeChannel == ADC_POSITION_A0)
+    {
+        filtrePosition(adcValues[activeChannel]);
+    }
+    else
+    {
+        filtreCourant(adcValues[activeChannel]);
+    }
 
     toggleCounter++;
     if (toggleCounter >= 5000)
@@ -78,4 +97,36 @@ ISR(ADC_vect)
         digitalWrite(13, !digitalRead(13));
         toggleCounter = 0;
     }
+}
+
+void filtrePosition(uint16_t newPosition)
+{
+    // Remplacer ancienne valeur par nouvelle dans buffer et somme
+    sommePosition -= bufferFiltrePosition[indexFiltrePosition];
+    sommePosition += newPosition;
+    bufferFiltrePosition[indexFiltrePosition] = newPosition;
+
+    // update index
+    indexFiltrePosition++;
+    if (indexFiltrePosition >= TAILLE_BUFFER_FILTRE_POSITION)
+        indexFiltrePosition = 0;
+
+    // update position filtrée
+    positionFiltre = sommePosition / TAILLE_BUFFER_FILTRE_POSITION;
+}
+
+void filtreCourant(uint16_t newCourant)
+{
+    // Remplacer ancienne valeur par nouvelle dans buffer et somme
+    sommeCourant -= bufferFiltreCourant[indexFiltreCourant];
+    sommeCourant += newCourant;
+    bufferFiltreCourant[indexFiltreCourant] = newCourant;
+
+    // update index
+    indexFiltreCourant++;
+    if (indexFiltreCourant >= TAILLE_BUFFER_FILTRE_COURANT)
+        indexFiltreCourant = 0;
+
+    // update position filtrée
+    courantFiltre = sommeCourant / TAILLE_BUFFER_FILTRE_COURANT;
 }
