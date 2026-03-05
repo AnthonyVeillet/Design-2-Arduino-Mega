@@ -1,9 +1,12 @@
-#include "positions_sampler.h"
+#include "sampler.h"
 #include <Arduino.h>
 
 volatile uint16_t adcValues[2] = {0, 0};
 const uint8_t ADC_PINS[] = {A0, A1};
-volatile uint8_t currentChannel = 0;
+
+volatile uint8_t nextChannel = 0;
+volatile uint8_t activeChannel = 0;
+
 volatile bool acquisitionActive = false;
 volatile uint16_t toggleCounter = 0;
 volatile bool sendData = false;
@@ -37,34 +40,40 @@ void setup_ADC()
     // -----------------------------
     // ADC configuration
     // -----------------------------
-    ADMUX = (1 << REFS0);                                  // AVcc comme référence, canal sera sélectionné dynamiquement
-    ADCSRA = (1 << ADEN)                                   // activer ADC
-             | (1 << ADIE)                                 // activer interruption ADC
-             | (1 << ADPS2) | (1 << ADPS1);  // 64 prescaler → ADC clock = 250 kHz
+    ADMUX = (1 << REFS0);                   // AVcc comme référence, canal sera sélectionné dynamiquement
+    ADCSRA = (1 << ADEN)                    // activer ADC
+             | (1 << ADIE)                  // activer interruption ADC
+             | (1 << ADPS2) | (1 << ADPS1); // 64 prescaler → ADC clock = 250 kHz
 }
 
 ISR(TIMER1_COMPA_vect)
 {
-    // Sélection du canal A0 ou A1
-    ADMUX = (ADMUX & 0xF0) | (ADC_PINS[currentChannel] - A0); // choisir canal
+    // sélectionner canal
+    ADMUX = (ADMUX & 0xF0) | (ADC_PINS[nextChannel] - A0);
 
-    // Démarrer conversion ADC
+    // mémoriser le canal en conversion
+    activeChannel = nextChannel;
+
+    // démarrer conversion
     ADCSRA |= (1 << ADSC);
 
-    // Passer au canal suivant pour la prochaine acquisition
-    currentChannel = (currentChannel + 1) % 2;
+    // prochain canal
+    if (nextChannel == ADC_POSITION_A0)
+        nextChannel = ADC_COURANT_A1;
+    else
+        nextChannel = ADC_POSITION_A0;
 }
 
 ISR(ADC_vect)
 {
     if (!acquisitionActive)
-    {
         return;
-    }
-    adcValues[(currentChannel + 1) % 2] = ADC;
+
+    // stockage clair avec define
+    adcValues[activeChannel] = ADC;
 
     toggleCounter++;
-    if (toggleCounter >= 5000) // divise fréquence pour LED (~1 Hz)
+    if (toggleCounter >= 5000)
     {
         digitalWrite(13, !digitalRead(13));
         toggleCounter = 0;
