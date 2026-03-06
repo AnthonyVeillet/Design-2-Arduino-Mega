@@ -54,7 +54,7 @@ void initCoeffsPI_Courant(float Kp, float Ki, float Te, float Ti)
 {
     coeffCourant.b0 = Kp + (Ki*Te)/(2*Ti);
     coeffCourant.b1 = (Ki*Te)/(2*Ti) - Kp;
-    coeffPosition.b2 = 0;
+    coeffCourant.b2 = 0;
 }
 
 void calculCommandeCourant(uint16_t courant)
@@ -69,7 +69,7 @@ void calculCommandeCourant(uint16_t courant)
     float u1 = memoireAsservissementCourant.commande1;
 
     // Calcul commande PID
-    commande = u1 + coeffPosition.b0*erreur + coeffPosition.b1*e1;
+    commande = u1 + coeffCourant.b0*erreur + coeffCourant.b1*e1;
 
     // Update valeurs mémoire. Seulement besoin de -1.
     memoireAsservissementCourant.commande1 = commande;
