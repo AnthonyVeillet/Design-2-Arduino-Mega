@@ -36,3 +36,16 @@ void testResolutionPWM()
   OCR3A = 511;
   delay(100);
 }
+
+float Kpwm = 20.0;   // gain conversion commande → PWM
+#define PWM_MAX 1023
+#define PWM_MIN 0 
+uint16_t convertCommandePWM(float commande)
+{
+    int pwm = Kpwm * commande;
+
+    if (pwm > PWM_MAX) pwm = PWM_MAX;
+    if (pwm < PWM_MIN) pwm = PWM_MIN;
+
+    return pwm;
+}

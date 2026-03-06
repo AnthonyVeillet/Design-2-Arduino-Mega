@@ -1,6 +1,7 @@
 #include "asservissement.h"
 #include "sampler.h"
 #include "Arduino.h"
+#include "PWM.h"
 
 uint16_t positionRef = 0;
 CoefficientsPID_t coeffPosition = {0};
@@ -21,11 +22,19 @@ void tare()
     // initCoeffsPID_Position();
 }
 
-void initCoeffsPID_Position(float Kp, float Ki, float Kd, float Te, float Ti, float Td)
+void initCoeffsPID_Position()
 {
-    coeffPosition.b0 = Kp + (Ki*Te)/(2*Ti) + (2*Kd*Td)/Te;
-    coeffPosition.b1 = (Ki*Te)/Ti - (4*Kd*Td)/Te;
-    coeffPosition.b2 = -Kp + (Ki*Te)/(2*Ti) + (2*Kd*Td)/Te;
+    float Kp = 0.8;
+    float Ki = 1.0;
+    float Kd = 0.8;
+
+    float Te = 0.0002;   // 5 kHz
+    float Ti = 0.3;
+    float Td = 0.013;
+
+    coeffPosition.b0 = Kp + (Ki * Te) / (2 * Ti) + (2 * Kd * Td) / Te;
+    coeffPosition.b1 = (Ki * Te) / Ti - (4 * Kd * Td) / Te;
+    coeffPosition.b2 = -Kp + (Ki * Te) / (2 * Ti) + (2 * Kd * Td) / Te;
 }
 
 void calculCommandePosition(uint16_t position)
@@ -41,7 +50,10 @@ void calculCommandePosition(uint16_t position)
     float u2 = memoireAsservissementPos.commande2;
 
     // Calcul commande PID
-    commande = u2 + coeffPosition.b0*erreur + coeffPosition.b1*e1 + coeffPosition.b2*e2;
+    commande = u2 + coeffPosition.b0 * erreur + coeffPosition.b1 * e1 + coeffPosition.b2 * e2;
+
+    uint16_t pwm = convertCommandePWM(commande);
+    OCR3A = pwm;
 
     // Update valeurs mémoire
     memoireAsservissementPos.commande2 = memoireAsservissementPos.commande1;
@@ -52,8 +64,8 @@ void calculCommandePosition(uint16_t position)
 
 void initCoeffsPI_Courant(float Kp, float Ki, float Te, float Ti)
 {
-    coeffCourant.b0 = Kp + (Ki*Te)/(2*Ti);
-    coeffCourant.b1 = (Ki*Te)/(2*Ti) - Kp;
+    coeffCourant.b0 = Kp + (Ki * Te) / (2 * Ti);
+    coeffCourant.b1 = (Ki * Te) / (2 * Ti) - Kp;
     coeffCourant.b2 = 0;
 }
 
@@ -69,7 +81,7 @@ void calculCommandeCourant(uint16_t courant)
     float u1 = memoireAsservissementCourant.commande1;
 
     // Calcul commande PID
-    commande = u1 + coeffCourant.b0*erreur + coeffCourant.b1*e1;
+    commande = u1 + coeffCourant.b0 * erreur + coeffCourant.b1 * e1;
 
     // Update valeurs mémoire. Seulement besoin de -1.
     memoireAsservissementCourant.commande1 = commande;

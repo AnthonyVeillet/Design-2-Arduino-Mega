@@ -21,7 +21,7 @@ void setup()
   setup_PWM();
   sei(); // réactiver interruptions
 
-  delay(10);
+  delay(10); // Laisser temps à l'ADC pour première acquisition
   tare();
 }
 
@@ -59,16 +59,16 @@ void loop()
     Serial.write((uint8_t *)&a1, 2);
   }
 
-  if (lastPositionVal != positionVal)
-  {
-    // nouvelle position: calculer une nouvelle commande
+  // if (lastPositionVal != positionVal)
+  // {
+  //   // nouvelle position: calculer une nouvelle commande
+  //   calculCommandePosition(positionVal);
+  //   lastPositionVal = positionVal;
+  // }
 
-    lastPositionVal = positionVal;
-  }
-
-  if (lastCourantVal != courantVal)
-  {
-    // nouvelle position: calculer une nouvelle commande
-    lastCourantVal = courantVal;
-  }
+  // if (lastCourantVal != courantVal)
+  // {
+  //   // nouvelle position: calculer une nouvelle commande
+  //   lastCourantVal = courantVal;
+  // }
 }
