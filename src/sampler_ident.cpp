@@ -1,4 +1,4 @@
-#include "sampler.h"
+#include "sampler_ident.h"
 #include <Arduino.h>
 
 volatile uint16_t adcValues[2] = {0, 0};
@@ -10,6 +10,13 @@ volatile uint8_t activeChannel = 0;
 volatile bool acquisitionActive = false;
 volatile uint16_t toggleCounter = 0;
 volatile bool sendData = false;
+
+// Nouvelles variables minimales pour l'envoi au PC
+volatile uint16_t positionReady = 0;
+volatile uint16_t courantReady = 0;
+
+// Décimation, 5 kHz par capteur -> 500 Hz envoyé au PC
+volatile uint8_t decimationCounter = 0;
 
 #define TAILLE_BUFFER_FILTRE_POSITION 10 // Maximum de 256
 uint16_t bufferFiltrePosition[TAILLE_BUFFER_FILTRE_POSITION] = {0};
@@ -30,8 +37,10 @@ void setup_ADC()
 {
     pinMode(A0, INPUT);
     pinMode(A1, INPUT);
+
     // -----------------------------
-    // Timer1 pour trigger ADC 5 kHz
+    // Timer1 : 10 kHz de déclenchement
+    // Comme on alterne A0 et A1, chaque capteur est lu à 5 kHz
     // -----------------------------
     TCCR1A = 0;
     TCCR1B = 0;
@@ -89,6 +98,21 @@ ISR(ADC_vect)
     else
     {
         filtreCourant(adcValues[activeChannel]);
+
+        // On ne décime qu'après avoir reçu le 2e canal,
+        // donc après une paire complète {position, courant}
+        if (acquisitionActive)
+        {
+            decimationCounter++;
+
+            if (decimationCounter >= 10)
+            {
+                positionReady = positionFiltre;
+                courantReady = courantFiltre;
+                sendData = true;
+                decimationCounter = 0;
+            }
+        }
     }
 
     toggleCounter++;

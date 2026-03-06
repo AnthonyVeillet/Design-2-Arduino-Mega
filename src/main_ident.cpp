@@ -1,74 +1,85 @@
 #include <Arduino.h>
-#include "sampler.h"
+#include "sampler_ident.h"
 #include "PWM.h"
-#include "asservissement.h"
 
 const int ledPin = 13; // LED intégrée
-
-uint16_t lastPositionVal = 0;
-uint16_t positionVal = 0;
-
-uint16_t lastCourantVal = 0;
-uint16_t courantVal = 0;
 
 void setup()
 {
   Serial.begin(1000000);
-  pinMode(ledPin, OUTPUT); // LED
+  pinMode(ledPin, OUTPUT);
 
   cli(); // désactiver interruptions
   setup_ADC();
   setup_PWM();
   sei(); // réactiver interruptions
 
-  delay(10);
-  tare();
+  // Sécurité : on force le PWM à 0 au démarrage
+  setNewDutyCycleValue(0);
+
+  acquisitionActive = false;
+  sendData = false;
 }
 
 void loop()
 {
-  cli();
-  // Accès section critique
-  positionVal = positionFiltre;
-  courantVal = courantFiltre;
-  sei();
-
-  if (Serial.available())
+  // Gestion des commandes série
+  while (Serial.available())
   {
     char cmd = Serial.read();
+
     if (cmd == 'S')
     {
+      cli();
       acquisitionActive = true;
-      Serial.write('O'); // envoie ACK
+      sendData = false;
+      sei();
+
+      Serial.write('O'); // ACK start
     }
     else if (cmd == 'E')
     {
+      cli();
       acquisitionActive = false;
+      sendData = false;
+      sei();
+
       Serial.write('K'); // ACK stop
+    }
+    else if (cmd == 'P')
+    {
+      // Attend un octet supplémentaire contenant le duty 0..100
+      if (Serial.available() > 0)
+      {
+        uint8_t pwmValue = (uint8_t)Serial.read();
+
+        if (pwmValue > 100)
+          pwmValue = 100;
+
+        setNewDutyCycleValue(pwmValue);
+        Serial.write('D'); // ACK duty
+      }
+      else
+      {
+        // Pas encore l'octet du PWM, on ressort de la boucle
+        break;
+      }
     }
   }
 
-  if (acquisitionActive)
+  // Envoi seulement quand une nouvelle donnée décimée est prête
+  if (acquisitionActive && sendData)
   {
-    sendData = false;
+    uint16_t a0 = 0;
+    uint16_t a1 = 0;
 
-    uint16_t a0 = positionVal;
-    uint16_t a1 = courantVal;
+    cli();
+    a0 = positionReady;
+    a1 = courantReady;
+    sendData = false;
+    sei();
 
     Serial.write((uint8_t *)&a0, 2);
     Serial.write((uint8_t *)&a1, 2);
-  }
-
-  if (lastPositionVal != positionVal)
-  {
-    // nouvelle position: calculer une nouvelle commande
-
-    lastPositionVal = positionVal;
-  }
-
-  if (lastCourantVal != courantVal)
-  {
-    // nouvelle position: calculer une nouvelle commande
-    lastCourantVal = courantVal;
   }
 }

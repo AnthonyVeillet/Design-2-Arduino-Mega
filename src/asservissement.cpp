@@ -1,5 +1,5 @@
 #include "asservissement.h"
-#include "sampler.h"
+#include "sampler_ident.h"
 #include "Arduino.h"
 
 uint16_t positionRef = 0;
