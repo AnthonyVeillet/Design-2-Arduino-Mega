@@ -12,7 +12,7 @@ void setup_PWM()
 
   // Fast PWM avec ICR3 comme TOP (10 bits)
   ICR3 = 1023; // TOP = 1023 → résolution 10 bits
-  OCR3A = 512; // duty cycle initial 50%
+  OCR3A = 0; // duty cycle initial 0%
 
   // Mode Fast PWM non-inverting pour OC3A
   TCCR3A = (1 << WGM31) | (1 << COM3A1);
@@ -37,7 +37,7 @@ void testResolutionPWM()
   delay(100);
 }
 
-float Kpwm = 20.0;   // gain conversion commande → PWM
+float Kpwm = 120.0;   // gain conversion commande → PWM
 #define PWM_MAX 1023
 #define PWM_MIN 0 
 uint16_t convertCommandePWM(float commande)

@@ -8,7 +8,7 @@ volatile uint8_t nextChannel = 0;
 volatile uint8_t activeChannel = 0;
 
 volatile bool acquisitionActive = false;
-volatile uint16_t toggleCounter = 0;
+// volatile uint16_t toggleCounter = 0;
 volatile bool sendData = false;
 
 #define TAILLE_BUFFER_FILTRE_POSITION 10 // Maximum de 256
@@ -91,12 +91,12 @@ ISR(ADC_vect)
         filtreCourant(adcValues[activeChannel]);
     }
 
-    toggleCounter++;
-    if (toggleCounter >= 5000)
-    {
-        digitalWrite(13, !digitalRead(13));
-        toggleCounter = 0;
-    }
+    // toggleCounter++;
+    // if (toggleCounter >= 5000)
+    // {
+    //     digitalWrite(13, !digitalRead(13));
+    //     toggleCounter = 0;
+    // }
 }
 
 void filtrePosition(uint16_t newPosition)

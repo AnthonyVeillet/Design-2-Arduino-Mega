@@ -15,6 +15,7 @@ typedef struct{
     float b2;
 } CoefficientsPID_t;
 
+extern void setupTimerPID();
 extern void tare();
 extern void calculCommandePosition(uint16_t position);
 extern void calculCommandeCourant(uint16_t courant);
