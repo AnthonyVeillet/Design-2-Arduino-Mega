@@ -7,7 +7,7 @@ typedef struct{
     float commande2; // avant-dernière commande
     float erreur1; // dernière erreur
     float erreur2; // avant-dernière erreur
-} OldValAsservissementPos_t;
+} MemoireAsservissement_t;
 
 typedef struct{
     float b0;
