@@ -59,7 +59,8 @@ void loop()
           pwmValue = 100;
 
         setNewDutyCycleValue(pwmValue);
-        Serial.write('D'); // ACK duty
+        // Retirer car risque de décaller les données
+        //Serial.write('D'); // ACK duty
       }
       else
       {
