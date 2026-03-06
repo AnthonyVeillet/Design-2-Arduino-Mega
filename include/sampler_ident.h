@@ -18,3 +18,4 @@ extern volatile uint16_t courantFiltre;
 // Nouvelles variables minimales pour transmettre une vraie donnée décimée
 extern volatile uint16_t positionReady;
 extern volatile uint16_t courantReady;
+extern volatile uint8_t decimationCounter;

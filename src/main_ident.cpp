@@ -31,6 +31,7 @@ void loop()
     if (cmd == 'S')
     {
       cli();
+      decimationCounter = 0;
       acquisitionActive = true;
       sendData = false;
       sei();
@@ -42,6 +43,7 @@ void loop()
       cli();
       acquisitionActive = false;
       sendData = false;
+      decimationCounter = 0;
       sei();
 
       Serial.write('K'); // ACK stop
