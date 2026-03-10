@@ -3,8 +3,11 @@
 #include "Arduino.h"
 #include "PWM.h"
 
+volatile uint8_t compteurCascade = 0;
+
 // --- PID Timer ---
-void setupTimerPID() {
+void setupTimerPID()
+{
     // Timer2 en mode CTC
     TCCR2A = 0;
     TCCR2B = 0;
@@ -82,22 +85,30 @@ void calculCommandePosition(uint16_t position)
     // Calcul commande PID
     commande = u2 + coeffPosition.b0 * erreur + coeffPosition.b1 * e1 + coeffPosition.b2 * e2;
     // Serial.print(commande);
-    uint16_t pwm = convertCommandePWM(commande);
-    if (printCounter > 200)
-    {
-        Serial.println(commande);
-        printCounter = 0;
-        // Serial.println(commande);
-    }
-    printCounter++;
+    // uint16_t pwm = convertCommandePWM(commande);
+    // if (printCounter > 200)
+    // {
+    //     Serial.println(commande);
+    //     printCounter = 0;
+    //     // Serial.println(commande);
+    // }
+    // printCounter++;
 
-    OCR3A = pwm;
+    // OCR3A = pwm;
 
     // Update valeurs mémoire
     memoireAsservissementPos.commande2 = memoireAsservissementPos.commande1;
     memoireAsservissementPos.commande1 = commande;
     memoireAsservissementPos.erreur2 = memoireAsservissementPos.erreur1;
     memoireAsservissementPos.erreur1 = erreur;
+}
+
+uint16_t calculConsigneCourant(uint16_t commandePosition){
+    uint16_t consigne = 0;
+
+    
+
+    return consigne;
 }
 
 void initCoeffsPI_Courant(float Kp, float Ki, float Te, float Ti)
@@ -111,8 +122,12 @@ void calculCommandeCourant(uint16_t courant)
 {
     float commande = 0;
 
+    // normalisation
+    float y_norm = courant / 1023.0;
+    float r_norm = courantRef / 1023.0;
+
     // Calcul de l'erreur
-    float erreur = courant - courantRef; // courant > courantRef: erreur positive
+    float erreur = r_norm - y_norm;
 
     // Valeurs pour calcul commande
     float e1 = memoireAsservissementCourant.erreur1;
@@ -121,17 +136,32 @@ void calculCommandeCourant(uint16_t courant)
     // Calcul commande PID
     commande = u1 + coeffCourant.b0 * erreur + coeffCourant.b1 * e1;
 
+    // saturation
+    if (commande > 1.0) commande = 1.0;
+    if (commande < 0.0) commande = 0.0;
+
+    // sortie PWM
+    setNewDutyCycleValue(commande);
+
     // Update valeurs mémoire. Seulement besoin de -1.
     memoireAsservissementCourant.commande1 = commande;
     memoireAsservissementCourant.erreur1 = erreur;
 }
 
-ISR(TIMER2_COMPA_vect) {
+ISR(TIMER2_COMPA_vect)
+{
     // Lecture de la position filtrée (section critique)
     cli();
     uint16_t pos = positionFiltre;
+    uint16_t courant = courantFiltre;
     sei();
 
     // Calcul PID
-    calculCommandePosition(pos);
+    compteurCascade++;
+    if (compteurCascade >= 10)
+    {
+        compteurCascade = 0;
+        calculCommandePosition(pos);
+    }
+    calculCommandeCourant(courant);
 }
