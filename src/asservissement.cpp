@@ -50,7 +50,7 @@ void tare()
 
 void initCoeffsPID_Position()
 {
-    float Kp = 0.0000001;
+    float Kp = 0.1;
     float Ki = 1;
     float Kd = 0;
 
@@ -88,7 +88,7 @@ void calculCommandePosition(uint16_t position)
     uint16_t pwm = convertCommandePWM(commande);
     if (printCounter > 20)
     {
-        Serial.println(pwm);
+        Serial.println(erreur);
         printCounter = 0;
         // Serial.println(commande);
     }
