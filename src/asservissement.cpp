@@ -55,7 +55,7 @@ void initCoeffsPID_Position()
     float Kd = 0;
 
     float Te = 0.01; // 100 Hz = fréquence asservissement
-    float Ti = 0.3;
+    float Ti = 0.6;
     float Td = 0.013;
 
     coeffPosition.b0 = Kp + (Ki * Te) / (2 * Ti) + (2 * Kd * Td) / Te;
@@ -86,9 +86,9 @@ void calculCommandePosition(uint16_t position)
     commande = u2 + coeffPosition.b0 * erreur + coeffPosition.b1 * e1 + coeffPosition.b2 * e2;
     // Serial.print(commande);
     uint16_t pwm = convertCommandePWM(commande);
-    if (printCounter > 200)
+    if (printCounter > 20)
     {
-        Serial.println(pwm);
+        Serial.println(commande);
         printCounter = 0;
         // Serial.println(commande);
     }
