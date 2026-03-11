@@ -37,7 +37,7 @@ void testResolutionPWM()
   delay(100);
 }
 
-float Kpwm = 120.0;   // gain conversion commande → PWM
+float Kpwm = 1023.0;   // gain conversion commande → PWM
 #define PWM_MAX 1023
 #define PWM_MIN 0 
 uint16_t convertCommandePWM(float commande)

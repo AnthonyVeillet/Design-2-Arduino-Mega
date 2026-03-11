@@ -88,7 +88,7 @@ void calculCommandePosition(uint16_t position)
     uint16_t pwm = convertCommandePWM(commande);
     if (printCounter > 20)
     {
-        Serial.println(commande);
+        Serial.println(pwm);
         printCounter = 0;
         // Serial.println(commande);
     }
