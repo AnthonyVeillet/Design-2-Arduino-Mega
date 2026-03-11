@@ -50,11 +50,11 @@ void tare()
 
 void initCoeffsPID_Position()
 {
-    float Kp = 3.8;
+    float Kp = 0.0000001;
     float Ki = 1;
-    float Kd = 0.1;
+    float Kd = 0;
 
-    float Te = 0.01; // 100 Hz
+    float Te = 0.01; // 100 Hz = fréquence asservissement
     float Ti = 0.3;
     float Td = 0.013;
 
@@ -85,14 +85,14 @@ void calculCommandePosition(uint16_t position)
     // Calcul commande PID
     commande = u2 + coeffPosition.b0 * erreur + coeffPosition.b1 * e1 + coeffPosition.b2 * e2;
     // Serial.print(commande);
-    // uint16_t pwm = convertCommandePWM(commande);
-    // if (printCounter > 200)
-    // {
-    //     Serial.println(commande);
-    //     printCounter = 0;
-    //     // Serial.println(commande);
-    // }
-    // printCounter++;
+    uint16_t pwm = convertCommandePWM(commande);
+    if (printCounter > 200)
+    {
+        Serial.println(pwm);
+        printCounter = 0;
+        // Serial.println(commande);
+    }
+    printCounter++;
 
     // OCR3A = pwm;
 
@@ -165,5 +165,5 @@ ISR(TIMER2_COMPA_vect)
         calculCommandePosition(pos);
     }
     // 1000 Hz
-    calculCommandeCourant(courant);
+    // calculCommandeCourant(courant);
 }
