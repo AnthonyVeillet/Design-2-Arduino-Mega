@@ -54,7 +54,7 @@ void initCoeffsPID_Position()
     float Ki = 1;
     float Kd = 0.1;
 
-    float Te = 0.0002; // 5 kHz
+    float Te = 0.01; // 100 Hz
     float Ti = 0.3;
     float Td = 0.013;
 
@@ -160,8 +160,10 @@ ISR(TIMER2_COMPA_vect)
     compteurCascade++;
     if (compteurCascade >= 10)
     {
+        // 100 Hz
         compteurCascade = 0;
         calculCommandePosition(pos);
     }
+    // 1000 Hz
     calculCommandeCourant(courant);
 }
