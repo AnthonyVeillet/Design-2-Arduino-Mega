@@ -41,7 +41,8 @@ void tare()
 {
     cli();
     // Accès section critique
-    positionRef = positionFiltre;
+    // positionRef = positionFiltre;
+    positionRef = 430;
     courantRef = courantFiltre;
     sei();
 
@@ -50,12 +51,12 @@ void tare()
 
 void initCoeffsPID_Position()
 {
-    float Kp = 0.1;
-    float Ki = 1;
+    float Kp = 0.08;
+    float Ki = 0.8;
     float Kd = 0;
 
     float Te = 0.01; // 100 Hz = fréquence asservissement
-    float Ti = 0.6;
+    float Ti = 0.5;
     float Td = 0.013;
 
     coeffPosition.b0 = Kp + (Ki * Te) / (2 * Ti) + (2 * Kd * Td) / Te;
@@ -86,15 +87,15 @@ void calculCommandePosition(uint16_t position)
     commande = u2 + coeffPosition.b0 * erreur + coeffPosition.b1 * e1 + coeffPosition.b2 * e2;
     // Serial.print(commande);
     uint16_t pwm = convertCommandePWM(commande);
-    if (printCounter > 20)
-    {
-        Serial.println(erreur);
-        printCounter = 0;
-        // Serial.println(commande);
-    }
-    printCounter++;
+    // if (printCounter > 20)
+    // {
+    //     Serial.println(pwm);
+    //     printCounter = 0;
+    //     // Serial.println(commande);
+    // }
+    // printCounter++;
 
-    // OCR3A = pwm;
+    OCR3A = pwm;
 
     // Update valeurs mémoire
     memoireAsservissementPos.commande2 = memoireAsservissementPos.commande1;

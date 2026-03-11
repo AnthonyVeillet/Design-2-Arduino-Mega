@@ -5,7 +5,7 @@ import numpy as np
 import time
 
 PORT = 'COM4'
-BAUD = 1000000
+BAUD = 115200
 N_SAMPLES = 2000
 
 print("Ouverture du port série...")

@@ -13,3 +13,4 @@ extern volatile bool acquisitionActive;
 extern volatile bool sendData;
 extern volatile uint16_t positionFiltre;
 extern volatile uint16_t courantFiltre;
+extern volatile uint16_t adcValues[2];
