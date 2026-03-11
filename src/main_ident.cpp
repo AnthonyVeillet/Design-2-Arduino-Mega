@@ -14,7 +14,7 @@ void setup()
   setup_PWM();
   sei(); // réactiver interruptions
 
-  // Sécurité : on force le PWM à 0 au démarrage
+  // Sécurité : on force le PWM à 50 (soit courant null) au démarrage
   setNewDutyCycleValue(50);
 
   acquisitionActive = false;

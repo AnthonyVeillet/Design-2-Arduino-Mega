@@ -216,8 +216,8 @@ def collect_test_phase(
         elapsed = time.monotonic() - start
 
         if (not zero_sent) and (elapsed >= on_duration_s):
-            send_pwm(ser, 0)
-            current_pwm = 0
+            send_pwm(ser, 50)
+            current_pwm = 50
             zero_sent = True
 
         next_k = pump_samples_from_serial(ser, rx_buffer, samples, next_k, current_pwm)
@@ -316,7 +316,7 @@ def plot_and_save(
 
 
 def run_one_test(ser: serial.Serial) -> None:
-    send_pwm(ser, 0)
+    send_pwm(ser, 50)
     time.sleep(0.05)
     ser.reset_input_buffer()
 
@@ -340,7 +340,7 @@ def run_one_test(ser: serial.Serial) -> None:
         ser=ser,
         duration_s=REF_DURATION_S,
         start_k=0,
-        pwm_value=0,
+        pwm_value=50,
     )
     send_stop(ser)
 
@@ -369,7 +369,7 @@ def run_one_test(ser: serial.Serial) -> None:
         pwm_on=pwm_value,
     )
     send_stop(ser)
-    send_pwm(ser, 0)
+    send_pwm(ser, 50)
     time.sleep(0.05)
     ser.reset_input_buffer()
 
@@ -422,7 +422,7 @@ def main() -> None:
     finally:
         if ser is not None:
             try:
-                send_pwm(ser, 0)
+                send_pwm(ser, 50)
                 time.sleep(0.05)
                 send_stop(ser)
             except Exception:
