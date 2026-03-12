@@ -34,31 +34,31 @@ void loop()
   // courantVal = courantFiltre;
   // sei();
 
-  if (Serial.available())
-  {
-    char cmd = Serial.read();
-    if (cmd == 'S')
-    {
-      acquisitionActive = true;
-      Serial.write('O'); // envoie ACK
-    }
-    else if (cmd == 'E')
-    {
-      acquisitionActive = false;
-      Serial.write('K'); // ACK stop
-    }
-  }
+  // if (Serial.available())
+  // {
+  //   char cmd = Serial.read();
+  //   if (cmd == 'S')
+  //   {
+  //     acquisitionActive = true;
+  //     Serial.write('O'); // envoie ACK
+  //   }
+  //   else if (cmd == 'E')
+  //   {
+  //     acquisitionActive = false;
+  //     Serial.write('K'); // ACK stop
+  //   }
+  // }
 
-  if (acquisitionActive)
-  {
-    sendData = false;
+  // if (acquisitionActive)
+  // {
+  //   sendData = false;
 
-    uint16_t a0 = adcValues[0];
-    uint16_t a1 = adcValues[1];
+  //   uint16_t a0 = adcValues[0];
+  //   uint16_t a1 = adcValues[1];
 
-    Serial.write((uint8_t *)&a0, 2);
-    Serial.write((uint8_t *)&a1, 2);
-  }
+  //   Serial.write((uint8_t *)&a0, 2);
+  //   Serial.write((uint8_t *)&a1, 2);
+  // }
 
   // nouvelle position: calculer une nouvelle commande
   toggleCounter++;

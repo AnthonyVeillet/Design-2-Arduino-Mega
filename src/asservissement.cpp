@@ -51,13 +51,13 @@ void tare()
 
 void initCoeffsPID_Position()
 {
-    float Kp = 0.08;
-    float Ki = 0.8;
+    float Kp = 0;
+    float Ki = 1.12;
     float Kd = 0;
 
     float Te = 0.01; // 100 Hz = fréquence asservissement
-    float Ti = 0.5;
-    float Td = 0.013;
+    float Ti = 1;
+    float Td = 0;
 
     coeffPosition.b0 = Kp + (Ki * Te) / (2 * Ti) + (2 * Kd * Td) / Te;
     coeffPosition.b1 = (Ki * Te) / Ti - (4 * Kd * Td) / Te;
@@ -93,9 +93,23 @@ void calculCommandePosition(uint16_t position)
     //     printCounter = 0;
     //     // Serial.println(commande);
     // }
-    // printCounter++;
+    printCounter++;
 
     OCR3A = pwm;
+    // OCR3A = 800;
+    // if (printCounter == 1)
+    // {
+    //     OCR3A = 0;
+    // }
+    // else if (printCounter == 2)
+    // {
+    //     OCR3A = 512;
+    // }
+    // else
+    // {
+    //     OCR3A = 1023;
+    //     printCounter = 0;
+    // }
 
     // Update valeurs mémoire
     memoireAsservissementPos.commande2 = memoireAsservissementPos.commande1;
@@ -104,10 +118,9 @@ void calculCommandePosition(uint16_t position)
     memoireAsservissementPos.erreur1 = erreur;
 }
 
-uint16_t calculConsigneCourant(uint16_t commandePosition){
+uint16_t calculConsigneCourant(uint16_t commandePosition)
+{
     uint16_t consigne = 0;
-
-    
 
     return consigne;
 }
@@ -138,8 +151,10 @@ void calculCommandeCourant(uint16_t courant)
     commande = u1 + coeffCourant.b0 * erreur + coeffCourant.b1 * e1;
 
     // saturation
-    if (commande > 1.0) commande = 1.0;
-    if (commande < 0.0) commande = 0.0;
+    if (commande > 1.0)
+        commande = 1.0;
+    if (commande < 0.0)
+        commande = 0.0;
 
     // sortie PWM
     setNewDutyCycleValue(commande);
