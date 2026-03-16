@@ -6,7 +6,7 @@ import time
 
 PORT = 'COM4'
 BAUD = 115200
-N_SAMPLES = 2000
+N_SAMPLES = 10000
 
 print("Ouverture du port série...")
 ser = serial.Serial(PORT, BAUD, timeout=1)
@@ -46,6 +46,7 @@ plt.plot(data_ch1, label="A1")
 plt.xlabel("Sample")
 plt.ylabel("ADC value")
 plt.title("ADC acquisition - 2 channels")
+plt.ylim(0, 1023)
 plt.legend()
 plt.grid()
 plt.show()

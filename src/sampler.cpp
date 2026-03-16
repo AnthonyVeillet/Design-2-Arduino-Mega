@@ -43,7 +43,7 @@ void setup_ADC()
     // Compare Match A : OCR1A = (F_CPU / (prescaler * f)) - 1
     // F_CPU = 16 MHz, f = 5 kHz, prescaler = 8
     // OCR1A = 16,000,000 / (8*10000) - 1 = 199
-    OCR1A = 199;
+    OCR1A = 399;
 
     // Prescaler = 8
     TCCR1B |= (1 << CS11);
