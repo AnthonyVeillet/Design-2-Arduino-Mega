@@ -1,0 +1,83 @@
+============= Début des tests ===============
+================ Port COM4 ==================
+
+Script Python en local sur l'ordinateur PC, étapes
+(sachant que la fréquence des données reçues par le PC est de 500 Hz,
+car chaque capteur est acquis à 5 kHz et l'Arduino n'envoie qu'une donnée sur 10) :
+
+1) Envoie un PWM de 0 % à l'Arduino.
+
+2) Demande au user si la balance est bien au repos et en régime permanent (O/N) :
+   - si O, on affiche :
+     "Tarage de la position et du courant de référence en cours (5 secondes)...
+      Une fois terminé, ne pas modifier le prototype."
+     puis on continue ;
+   - si N, on affiche qu'il faut mettre la balance au repos et n'appliquer
+     aucune force sur ses composantes, puis on arrête le programme.
+
+3) Pendant les 5 premières secondes, récupère les données reçues de l'Arduino
+   et les écrit dans un fichier CSV dans le dossier dataIdentification.
+
+4) Analyse les données acquises pendant ces 5 premières secondes et en calcule
+   la moyenne. Ces valeurs deviennent :
+   - positionRef
+   - courantRef
+
+5) Demande au user quel test il veut faire :
+   - si 0, testName = "Échelon"
+   - si 1, testName = "Impulsion courte"
+
+6) Demande au user quel pourcentage de PWM en sortie du Arduino
+   (variable pwmVal).
+
+7) Crée le fichier final {testName}_{pwmVal}.csv dans le dossier
+   dataIdentification.
+
+8) Les données du fichier CSV auront la structure :
+   k, time_s, pwmVal, position, courant, positionRef, courantRef,
+   positionReel, courantReel
+
+   où :
+   - position et courant sont les valeurs reçues de l'Arduino ;
+   - ces valeurs sont déjà filtrées par le module sampler sur l'Arduino ;
+   - positionReel = position - positionRef
+   - courantReel = courant - courantRef
+
+9) Affiche :
+   print(f"Test {testName} avec un PWM de {pwmVal}")
+
+10) Lance le test en envoyant la valeur du PWM au Arduino.
+
+11) Envoie ensuite un PWM de 0 %, après :
+   - si testName = "Échelon", 15 secondes après le lancement du test ;
+   - si testName = "Impulsion courte", 100 ms après le lancement du test.
+
+12) Continue de récupérer les données jusqu'à :
+   - si testName = "Échelon", 15 secondes après que le PWM soit revenu à 0 % ;
+   - si testName = "Impulsion courte", 15 secondes après que le PWM soit revenu à 0 %.
+
+13) Affiche que les données ont bien été récupérées et enregistrées
+    dans le fichier correspondant.
+
+14) Génère et affiche graphiquement les données.
+    L'axe x est le temps et l'axe y est la valeur.
+    Pour que l'axe des y commence à zéro, il faut utiliser
+    positionReel et courantReel.
+
+15) Enregistre le graphique avec le même nom de fichier
+    {testName}_{pwmVal}.
+
+16) Affiche que le graphique a bien été enregistré.
+
+17) Demande au user s'il veut faire un autre test (O/N) :
+   - si O, on recommence à l'étape 1 ;
+   - si N, on ferme le graphique et on arrête le programme.
+
+
+Script C++ en local sur l'Arduino Mega
+(connecté par USB à l'ordinateur PC) :
+
+1) Reçoit la valeur du PWM envoyée par le PC et l'applique en sortie.
+
+2) Acquisitionne les deux capteurs, filtre les valeurs dans sampler,
+   puis envoie les données au PC à 500 Hz.
