@@ -45,7 +45,16 @@ void loop()
     else if (cmd == 'E')
     {
       acquisitionActive = false;
-      Serial.write('K'); // ACK stop
+      // Serial.write('K'); // ACK stop
+    }
+    else if (cmd == 'P')
+    {
+      while (Serial.available() < 1)
+        ;
+      uint8_t pwm = Serial.read(); // 0–100
+
+      setNewDutyCycleValue(pwm/100);
+
     }
   }
 
@@ -53,8 +62,10 @@ void loop()
   {
     sendData = false;
 
+    cli();
     uint16_t a0 = adcValues[0];
     uint16_t a1 = adcValues[1];
+    sei();
 
     if (toggleCounter % 10 == 0)
     {
