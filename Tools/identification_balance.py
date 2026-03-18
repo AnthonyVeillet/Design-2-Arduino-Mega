@@ -15,7 +15,7 @@ BAUDRATE = 115200
 SAMPLE_RATE_HZ = 500.0
 REF_DURATION_S = 5.0
 STEP_ON_DURATION_S = 15.0
-PULSE_ON_DURATION_S = 0.100
+PULSE_ON_DURATION_S = 0.050
 POST_ZERO_DURATION_S = 15.0
 ARDUINO_BOOT_DELAY_S = 2.0
 SERIAL_POLL_SLEEP_S = 0.0005
@@ -320,6 +320,14 @@ def run_one_test(ser: serial.Serial) -> None:
     time.sleep(0.05)
     ser.reset_input_buffer()
 
+
+    test_label, test_name_file, on_duration_s = ask_test_type()
+    pwm_value = ask_int_in_range(
+        "Quel pourcentage de PWM veux-tu envoyer (0 à 100) ? : ",
+        0,
+        100,
+    )
+
     is_ready = ask_yes_no(
         "La balance est-elle bien au repos et en régime permanent ? (O/N) : "
     )
@@ -335,6 +343,8 @@ def run_one_test(ser: serial.Serial) -> None:
         "Une fois terminé, ne pas modifier le prototype."
     )
 
+    print(f"Test {test_label} avec un PWM de {pwm_value}%")
+
     send_start(ser)
     ref_samples, next_k = collect_constant_phase(
         ser=ser,
@@ -343,22 +353,6 @@ def run_one_test(ser: serial.Serial) -> None:
         pwm_value=50,
     )
     send_stop(ser)
-
-    position_ref, courant_ref = compute_references(ref_samples)
-    print(f"positionRef = {position_ref:.6f}")
-    print(f"courantRef  = {courant_ref:.6f}")
-
-    test_label, test_name_file, on_duration_s = ask_test_type()
-    pwm_value = ask_int_in_range(
-        "Quel pourcentage de PWM veux-tu envoyer (0 à 100) ? : ",
-        0,
-        100,
-    )
-
-    csv_path = DATA_DIR / f"{test_name_file}_{pwm_value}.csv"
-    png_path = DATA_DIR / f"{test_name_file}_{pwm_value}.png"
-
-    print(f"Test {test_label} avec un PWM de {pwm_value}%")
 
     send_start(ser)
     test_samples, _ = collect_test_phase(
@@ -372,6 +366,15 @@ def run_one_test(ser: serial.Serial) -> None:
     send_pwm(ser, 50)
     time.sleep(0.05)
     ser.reset_input_buffer()
+
+    position_ref, courant_ref = compute_references(ref_samples)
+    print(f"positionRef = {position_ref:.6f}")
+    print(f"courantRef  = {courant_ref:.6f}")
+
+    csv_path = DATA_DIR / f"{test_name_file}_{pwm_value}.csv"
+    png_path = DATA_DIR / f"{test_name_file}_{pwm_value}.png"
+
+
 
     all_samples = ref_samples + test_samples
 
