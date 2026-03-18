@@ -47,14 +47,22 @@ void loop()
       acquisitionActive = false;
       // Serial.write('K'); // ACK stop
     }
+    else if (cmd == 'I') // mode identification ON
+    {
+      modeIdentification = true;
+    }
+    else if (cmd == 'N') // mode normal
+    {
+      resetPID();
+      modeIdentification = false;
+    }
     else if (cmd == 'P')
     {
       while (Serial.available() < 1)
         ;
       uint8_t pwm = Serial.read(); // 0–100
 
-      setNewDutyCycleValue(pwm/100);
-
+      setNewDutyCycleValue(pwm / 100.0f);
     }
   }
 

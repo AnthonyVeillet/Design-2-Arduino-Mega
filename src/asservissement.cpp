@@ -4,6 +4,7 @@
 #include "PWM.h"
 
 volatile uint8_t compteurCascade = 0;
+volatile bool modeIdentification = false;
 
 // --- PID Timer ---
 void setupTimerPID()
@@ -62,6 +63,12 @@ void initCoeffsPID_Position()
     coeffPosition.b0 = Kp + (Ki * Te) / (2 * Ti) + (2 * Kd * Td) / Te;
     coeffPosition.b1 = (Ki * Te) / Ti - (4 * Kd * Td) / Te;
     coeffPosition.b2 = -Kp + (Ki * Te) / (2 * Ti) + (2 * Kd * Td) / Te;
+}
+
+void resetPID()
+{
+    memoireAsservissementPos = {0};
+    memoireAsservissementCourant = {0};
 }
 
 uint16_t printCounter = 0;
@@ -171,6 +178,9 @@ ISR(TIMER2_COMPA_vect)
     uint16_t pos = positionFiltre;
     uint16_t courant = courantFiltre;
     sei();
+
+    if(modeIdentification)
+        return;
 
     // Calcul PID
     compteurCascade++;
