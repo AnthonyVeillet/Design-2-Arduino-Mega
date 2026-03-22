@@ -9,7 +9,6 @@ volatile uint8_t activeChannel = 0;
 
 volatile bool acquisitionActive = false;
 // volatile uint16_t toggleCounter = 0;
-volatile bool sendData = false;
 
 #define TAILLE_BUFFER_FILTRE_POSITION 10 // Maximum de 256
 uint16_t bufferFiltrePosition[TAILLE_BUFFER_FILTRE_POSITION] = {0};

@@ -5,6 +5,8 @@
 
 volatile uint8_t compteurCascade = 0;
 volatile bool modeIdentification = false;
+volatile bool mesureValide = false;
+volatile uint16_t consigneCourant = 512; // Envoyer 50% = 0A par défaut
 
 // --- PID Timer ---
 void setupTimerPID()
@@ -92,17 +94,18 @@ void calculCommandePosition(uint16_t position)
 
     // Calcul commande PID
     commande = u2 + coeffPosition.b0 * erreur + coeffPosition.b1 * e1 + coeffPosition.b2 * e2;
+    consigneCourant = convertCommandePWM(commande);
     // Serial.print(commande);
-    uint16_t pwm = convertCommandePWM(commande);
+    // uint16_t pwm = convertCommandePWM(commande);
     // if (printCounter > 20)
     // {
     //     Serial.println(pwm);
     //     printCounter = 0;
     //     // Serial.println(commande);
     // }
-    printCounter++;
+    // printCounter++;
 
-    OCR3A = pwm;
+    // OCR3A = pwm;
     // OCR3A = 800;
     // if (printCounter == 1)
     // {
@@ -173,14 +176,13 @@ void calculCommandeCourant(uint16_t courant)
 
 ISR(TIMER2_COMPA_vect)
 {
+    if(modeIdentification)
+        return;
+
     // Lecture de la position filtrée (section critique)
     cli();
     uint16_t pos = positionFiltre;
-    uint16_t courant = courantFiltre;
     sei();
-
-    if(modeIdentification)
-        return;
 
     // Calcul PID
     compteurCascade++;
@@ -191,5 +193,5 @@ ISR(TIMER2_COMPA_vect)
         calculCommandePosition(pos);
     }
     // 1000 Hz
-    // calculCommandeCourant(courant);
+    calculCommandeCourant(consigneCourant);
 }

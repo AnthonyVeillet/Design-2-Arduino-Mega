@@ -28,11 +28,6 @@ uint16_t toggleCounter = 0;
 
 void loop()
 {
-  // cli();
-  // // Accès section critique
-  // positionVal = positionFiltre;
-  // courantVal = courantFiltre;
-  // sei();
 
   if (Serial.available())
   {
@@ -66,10 +61,17 @@ void loop()
     }
   }
 
+  // Envoi du courant en continu quand la position est asservie pour afficher la masse.
+  uint16_t courant = 0;
+  if (toggleCounter % 20 == 0)
+  {
+    Serial.write('M');
+    Serial.write((uint8_t *)&courant, 2);
+    Serial.write(mesureValide ? 1 : 0);
+  }
+
   if (acquisitionActive)
   {
-    sendData = false;
-
     cli();
     uint16_t a0 = adcValues[0];
     uint16_t a1 = adcValues[1];
@@ -77,23 +79,16 @@ void loop()
 
     if (toggleCounter % 10 == 0)
     {
+      Serial.write('D');
       Serial.write((uint8_t *)&a0, 2);
       Serial.write((uint8_t *)&a1, 2);
     }
   }
 
-  // nouvelle position: calculer une nouvelle commande
   toggleCounter++;
   if (toggleCounter >= 5000)
   {
     digitalWrite(13, !digitalRead(13));
     toggleCounter = 0;
   }
-  // calculCommandePosition(positionVal);
-
-  // if (lastCourantVal != courantVal)
-  // {
-  //   // nouvelle position: calculer une nouvelle commande
-  //   lastCourantVal = courantVal;
-  // }
 }

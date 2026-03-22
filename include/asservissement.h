@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 extern volatile bool modeIdentification;
+extern volatile bool mesureValide;
 
 typedef struct{
     float commande1; // dernière commande
