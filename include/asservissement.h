@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-extern bool modeIdentification;
+extern volatile bool modeIdentification;
 
 typedef struct{
     float commande1; // dernière commande
