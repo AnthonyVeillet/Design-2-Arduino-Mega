@@ -78,6 +78,7 @@ uint16_t printCounter = 0;
 void calculCommandePosition(uint16_t position)
 {
     float commande = 0;
+    bool commandeSaturee = false;
 
     // Calcul de l'erreur
     float y_norm = position / 1023.0;
@@ -94,6 +95,11 @@ void calculCommandePosition(uint16_t position)
 
     // Calcul commande PID
     commande = u2 + coeffPosition.b0 * erreur + coeffPosition.b1 * e1 + coeffPosition.b2 * e2;
+    if (commande > 1.0 || commande < 0.0)
+        commandeSaturee = true;
+    else
+        commandeSaturee = false;
+
     consigneCourant = convertCommandePWM(commande);
     // Serial.print(commande);
     // uint16_t pwm = convertCommandePWM(commande);
@@ -122,8 +128,12 @@ void calculCommandePosition(uint16_t position)
     // }
 
     // Update valeurs mémoire
-    memoireAsservissementPos.commande2 = memoireAsservissementPos.commande1;
-    memoireAsservissementPos.commande1 = commande;
+    if (!commandeSaturee)
+    {
+        // Anti-windup
+        memoireAsservissementPos.commande2 = memoireAsservissementPos.commande1;
+        memoireAsservissementPos.commande1 = commande;
+    }
     memoireAsservissementPos.erreur2 = memoireAsservissementPos.erreur1;
     memoireAsservissementPos.erreur1 = erreur;
 }
@@ -145,6 +155,7 @@ void initCoeffsPI_Courant(float Kp, float Ki, float Te, float Ti)
 void calculCommandeCourant(uint16_t courant)
 {
     float commande = 0;
+    bool commandeSaturee = false;
 
     // normalisation
     float y_norm = courant / 1023.0;
@@ -159,6 +170,10 @@ void calculCommandeCourant(uint16_t courant)
 
     // Calcul commande PID
     commande = u1 + coeffCourant.b0 * erreur + coeffCourant.b1 * e1;
+    if (commande > 1.0 || commande < 0.0)
+        commandeSaturee = true;
+    else
+        commandeSaturee = false;
 
     // saturation
     if (commande > 1.0)
@@ -170,13 +185,14 @@ void calculCommandeCourant(uint16_t courant)
     setNewDutyCycleValue(commande);
 
     // Update valeurs mémoire. Seulement besoin de -1.
-    memoireAsservissementCourant.commande1 = commande;
+    if(!commandeSaturee)
+        memoireAsservissementCourant.commande1 = commande;
     memoireAsservissementCourant.erreur1 = erreur;
 }
 
 ISR(TIMER2_COMPA_vect)
 {
-    if(modeIdentification)
+    if (modeIdentification)
         return;
 
     // Lecture de la position filtrée (section critique)
