@@ -36,7 +36,6 @@ uint16_t positionRef = 0;
 CoefficientsPID_t coeffPosition = {0};
 MemoireAsservissement_t memoireAsservissementPos = {0};
 
-uint16_t courantRef = 0;
 CoefficientsPID_t coeffCourant = {0};
 MemoireAsservissement_t memoireAsservissementCourant = {0};
 
@@ -46,7 +45,6 @@ void tare()
     // Accès section critique
     // positionRef = positionFiltre;
     positionRef = 430;
-    courantRef = courantFiltre;
     sei();
 
     initCoeffsPID_Position();
@@ -138,13 +136,6 @@ void calculCommandePosition(uint16_t position)
     memoireAsservissementPos.erreur1 = erreur;
 }
 
-uint16_t calculConsigneCourant(uint16_t commandePosition)
-{
-    uint16_t consigne = 0;
-
-    return consigne;
-}
-
 void initCoeffsPI_Courant(float Kp, float Ki, float Te, float Ti)
 {
     coeffCourant.b0 = Kp + (Ki * Te) / (2 * Ti);
@@ -159,7 +150,7 @@ void calculCommandeCourant(uint16_t courant)
 
     // normalisation
     float y_norm = courant / 1023.0;
-    float r_norm = courantRef / 1023.0;
+    float r_norm = consigneCourant / 1023.0;
 
     // Calcul de l'erreur
     float erreur = r_norm - y_norm;
@@ -198,6 +189,7 @@ ISR(TIMER2_COMPA_vect)
     // Lecture de la position filtrée (section critique)
     cli();
     uint16_t pos = positionFiltre;
+    uint16_t courant = courantFiltre;
     sei();
 
     // Calcul PID
@@ -209,5 +201,5 @@ ISR(TIMER2_COMPA_vect)
         calculCommandePosition(pos);
     }
     // 1000 Hz
-    calculCommandeCourant(consigneCourant);
+    calculCommandeCourant(courant);
 }
