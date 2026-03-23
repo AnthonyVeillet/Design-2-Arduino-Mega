@@ -19,6 +19,9 @@ typedef struct{
 } CoefficientsPID_t;
 
 extern void setupTimerPID();
+extern void setPositionReference(uint16_t pref);
+extern void initCoeffsPID_Position(float Kp, float Ki, float Kd);
+extern void initCoeffsPI_Courant(float Kp, float Ki);
 extern void tare();
 extern void resetPID();
 extern void calculCommandePosition(uint16_t position);

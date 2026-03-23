@@ -5,7 +5,7 @@
 
 volatile uint8_t compteurCascade = 0;
 volatile bool modeIdentification = false;
-volatile bool mesureValide = false;
+volatile bool mesureValide = true;
 volatile uint16_t consigneCourant = 512; // Envoyer 50% = 0A par défaut
 
 // --- PID Timer ---
@@ -30,9 +30,6 @@ void setupTimerPID()
     TIMSK2 |= (1 << OCIE2A);
 }
 
-void initCoeffsPID_Position();
-void initCoeffsPI_Courant();
-
 uint16_t positionRef = 0;
 CoefficientsPID_t coeffPosition = {0};
 MemoireAsservissement_t memoireAsservissementPos = {0};
@@ -48,16 +45,17 @@ void tare()
     positionRef = 430;
     sei();
 
-    initCoeffsPID_Position();
-    initCoeffsPI_Courant();
+    initCoeffsPID_Position(0, 1.12, 0);
+    initCoeffsPI_Courant(0, 1.12);
 }
 
-void initCoeffsPID_Position()
+void setPositionReference(uint16_t pref)
 {
-    float Kp = 0;
-    float Ki = 1.12;
-    float Kd = 0;
+    positionRef = pref;
+}
 
+void initCoeffsPID_Position(float Kp, float Ki, float Kd)
+{
     float Te = 0.01; // 100 Hz = fréquence asservissement position
 
     coeffPosition.b0 = Kp + (Ki * Te) / 2 + (2 * Kd) / Te;
@@ -100,7 +98,7 @@ void calculCommandePosition(uint16_t position)
 
     // consigneCourant = convertCommandePWM(commande);
     uint16_t pwm = convertCommandePWM(commande);
-    
+
     OCR3A = pwm;
 
     // Update valeurs mémoire
@@ -114,11 +112,8 @@ void calculCommandePosition(uint16_t position)
     memoireAsservissementPos.erreur1 = erreur;
 }
 
-void initCoeffsPI_Courant()
+void initCoeffsPI_Courant(float Kp, float Ki)
 {
-    float Kp = 0;
-    float Ki = 1.12;
-
     float Te = 0.001; // 1000 Hz = fréquence asservissement courant
 
     coeffCourant.b0 = Kp + (Ki * Te) / 2;

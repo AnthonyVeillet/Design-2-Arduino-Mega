@@ -59,6 +59,38 @@ void loop()
 
       setNewDutyCycleValue(pwm / 100.0f);
     }
+    
+    // Consigne position
+    else if (cmd == 'R')
+    {
+      while (Serial.available() < 2)
+        ;
+      uint16_t ref = Serial.read() | (Serial.read() << 8);
+      setPositionReference(ref);
+    }
+
+    // PID position (Kp Ki Kd float)
+    else if (cmd == 'G')
+    {
+      while (Serial.available() < 12)
+        ;
+      float kp, ki, kd;
+      Serial.readBytes((char *)&kp, 4);
+      Serial.readBytes((char *)&ki, 4);
+      Serial.readBytes((char *)&kd, 4);
+      initCoeffsPID_Position(kp, ki, kd);
+    }
+
+    // PID courant (Kp Ki)
+    else if (cmd == 'H')
+    {
+      while (Serial.available() < 8)
+        ;
+      float kp, ki;
+      Serial.readBytes((char *)&kp, 4);
+      Serial.readBytes((char *)&ki, 4);
+      initCoeffsPI_Courant(kp, ki);
+    }
   }
 
   // Envoi du courant en continu quand la position est asservie pour afficher la masse.
