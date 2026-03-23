@@ -98,32 +98,10 @@ void calculCommandePosition(uint16_t position)
     else
         commandeSaturee = false;
 
-    consigneCourant = convertCommandePWM(commande);
-    // Serial.print(commande);
-    // uint16_t pwm = convertCommandePWM(commande);
-    // if (printCounter > 20)
-    // {
-    //     Serial.println(pwm);
-    //     printCounter = 0;
-    //     // Serial.println(commande);
-    // }
-    // printCounter++;
-
-    // OCR3A = pwm;
-    // OCR3A = 800;
-    // if (printCounter == 1)
-    // {
-    //     OCR3A = 0;
-    // }
-    // else if (printCounter == 2)
-    // {
-    //     OCR3A = 512;
-    // }
-    // else
-    // {
-    //     OCR3A = 1023;
-    //     printCounter = 0;
-    // }
+    // consigneCourant = convertCommandePWM(commande);
+    uint16_t pwm = convertCommandePWM(commande);
+    
+    OCR3A = pwm;
 
     // Update valeurs mémoire
     if (!commandeSaturee)
@@ -206,5 +184,5 @@ ISR(TIMER2_COMPA_vect)
         calculCommandePosition(pos);
     }
     // 1000 Hz
-    calculCommandeCourant(courant);
+    // calculCommandeCourant(courant);
 }
