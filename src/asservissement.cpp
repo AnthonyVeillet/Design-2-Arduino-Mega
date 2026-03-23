@@ -31,6 +31,7 @@ void setupTimerPID()
 }
 
 void initCoeffsPID_Position();
+void initCoeffsPI_Courant();
 
 uint16_t positionRef = 0;
 CoefficientsPID_t coeffPosition = {0};
@@ -48,6 +49,7 @@ void tare()
     sei();
 
     initCoeffsPID_Position();
+    initCoeffsPI_Courant();
 }
 
 void initCoeffsPID_Position()
@@ -56,13 +58,11 @@ void initCoeffsPID_Position()
     float Ki = 1.12;
     float Kd = 0;
 
-    float Te = 0.01; // 100 Hz = fréquence asservissement
-    float Ti = 1;
-    float Td = 0;
+    float Te = 0.01; // 100 Hz = fréquence asservissement position
 
-    coeffPosition.b0 = Kp + (Ki * Te) / (2 * Ti) + (2 * Kd * Td) / Te;
-    coeffPosition.b1 = (Ki * Te) / Ti - (4 * Kd * Td) / Te;
-    coeffPosition.b2 = -Kp + (Ki * Te) / (2 * Ti) + (2 * Kd * Td) / Te;
+    coeffPosition.b0 = Kp + (Ki * Te) / 2 + (2 * Kd) / Te;
+    coeffPosition.b1 = (Ki * Te) - (4 * Kd) / Te;
+    coeffPosition.b2 = -Kp + (Ki * Te) / 2 + (2 * Kd) / Te;
 }
 
 void resetPID()
@@ -136,10 +136,15 @@ void calculCommandePosition(uint16_t position)
     memoireAsservissementPos.erreur1 = erreur;
 }
 
-void initCoeffsPI_Courant(float Kp, float Ki, float Te, float Ti)
+void initCoeffsPI_Courant()
 {
-    coeffCourant.b0 = Kp + (Ki * Te) / (2 * Ti);
-    coeffCourant.b1 = (Ki * Te) / (2 * Ti) - Kp;
+    float Kp = 0;
+    float Ki = 1.12;
+
+    float Te = 0.001; // 1000 Hz = fréquence asservissement courant
+
+    coeffCourant.b0 = Kp + (Ki * Te) / 2;
+    coeffCourant.b1 = (Ki * Te) / 2 - Kp;
     coeffCourant.b2 = 0;
 }
 
@@ -176,7 +181,7 @@ void calculCommandeCourant(uint16_t courant)
     setNewDutyCycleValue(commande);
 
     // Update valeurs mémoire. Seulement besoin de -1.
-    if(!commandeSaturee)
+    if (!commandeSaturee)
         memoireAsservissementCourant.commande1 = commande;
     memoireAsservissementCourant.erreur1 = erreur;
 }
