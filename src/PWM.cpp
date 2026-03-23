@@ -23,7 +23,7 @@ void setNewDutyCycleValue(uint8_t dutyCycle)
 {
   if (dutyCycle > 100)
   {
-    return;
+    dutyCycle = 100;
   }
   uint16_t count = (dutyCycle * 1023) / 100;
   OCR3A = count;
