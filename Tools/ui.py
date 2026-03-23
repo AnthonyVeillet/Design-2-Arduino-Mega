@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import threading
 import time
 import serial
+import matplotlib.pyplot as plt
 
 BAUDRATE = 115200
 
@@ -16,6 +17,14 @@ class App:
         self.rx_buffer = bytearray()
         self.running = False
 
+        self.last_courant = 0
+        self.last_flag = 0
+        self.offset = 0
+
+        self.data_pos = []
+        self.data_cur = []
+        self.data_time = []
+
         self.create_widgets()
 
     # ==========================
@@ -25,46 +34,38 @@ class App:
         frame = ttk.Frame(self.root, padding=10)
         frame.grid(row=0, column=0, sticky="nsew")
 
-        # PORT
-        ttk.Label(frame, text="Port série:").grid(row=0, column=0, sticky="w")
-        self.port_entry = ttk.Entry(frame, width=20)
+        ttk.Label(frame, text="Port série:").grid(row=0, column=0)
+        self.port_entry = ttk.Entry(frame)
         self.port_entry.grid(row=0, column=1)
         self.port_entry.insert(0, "COM3")
 
         ttk.Button(frame, text="Connecter", command=self.connect_serial).grid(row=0, column=2)
 
-        # MODE
-        ttk.Label(frame, text="Mode:").grid(row=1, column=0, sticky="w")
         self.mode = tk.StringVar(value="normal")
+        ttk.Radiobutton(frame, text="Asservi", variable=self.mode, value="normal").grid(row=1, column=1)
+        ttk.Radiobutton(frame, text="Identification", variable=self.mode, value="identification").grid(row=2, column=1)
 
-        ttk.Radiobutton(frame, text="Asservi (boucle fermée)", variable=self.mode, value="normal").grid(row=1, column=1, sticky="w")
-        ttk.Radiobutton(frame, text="Identification (boucle ouverte)", variable=self.mode, value="identification").grid(row=2, column=1, sticky="w")
-
-        # SIGNAL
-        ttk.Label(frame, text="Signal:").grid(row=3, column=0, sticky="w")
         self.signal_type = tk.StringVar(value="step")
+        ttk.Radiobutton(frame, text="Échelon", variable=self.signal_type, value="step").grid(row=3, column=1)
+        ttk.Radiobutton(frame, text="Impulsion", variable=self.signal_type, value="pulse").grid(row=4, column=1)
 
-        ttk.Radiobutton(frame, text="Échelon", variable=self.signal_type, value="step").grid(row=3, column=1, sticky="w")
-        ttk.Radiobutton(frame, text="Impulsion", variable=self.signal_type, value="pulse").grid(row=4, column=1, sticky="w")
-
-        # PWM
-        ttk.Label(frame, text="PWM (%):").grid(row=5, column=0, sticky="w")
-        self.pwm_entry = ttk.Entry(frame, width=10)
+        ttk.Label(frame, text="PWM (%)").grid(row=5, column=0)
+        self.pwm_entry = ttk.Entry(frame)
         self.pwm_entry.grid(row=5, column=1)
         self.pwm_entry.insert(0, "50")
 
-        # BOUTONS
-        ttk.Button(frame, text="Lancer test", command=self.start_test_thread).grid(row=6, column=0, columnspan=3, pady=10)
+        ttk.Button(frame, text="Lancer test", command=self.start_test_thread).grid(row=6, column=0, columnspan=3)
         ttk.Button(frame, text="Stop", command=self.stop_system).grid(row=7, column=0, columnspan=3)
 
-        # STATUS
-        self.status = tk.StringVar(value="Non connecté")
-        ttk.Label(frame, textvariable=self.status).grid(row=8, column=0, columnspan=3)
+        # TARE
+        ttk.Button(frame, text="Tare", command=self.do_tare).grid(row=8, column=0, columnspan=3)
 
-        # COURANT LIVE
-        ttk.Label(frame, text="Masse:").grid(row=9, column=0, sticky="w")
+        self.status = tk.StringVar(value="Non connecté")
+        ttk.Label(frame, textvariable=self.status).grid(row=9, column=0, columnspan=3)
+
+        ttk.Label(frame, text="Masse:").grid(row=10, column=0)
         self.masse = tk.StringVar(value="---")
-        ttk.Label(frame, textvariable=self.masse).grid(row=9, column=1)
+        ttk.Label(frame, textvariable=self.masse).grid(row=10, column=1)
 
     # ==========================
     # SERIAL
@@ -77,7 +78,6 @@ class App:
             self.ser.reset_input_buffer()
 
             self.start_reader_thread()
-
             self.status.set(f"Connecté à {port}")
         except Exception as e:
             messagebox.showerror("Erreur", str(e))
@@ -85,88 +85,88 @@ class App:
     def send_cmd(self, cmd: bytes):
         if self.ser:
             self.ser.write(cmd)
-            self.ser.flush()
 
     def send_pwm(self, pwm: int):
         if self.ser:
             self.ser.write(bytes((ord('P'), pwm)))
-            self.ser.flush()
 
     # ==========================
-    # THREAD LECTURE
+    # THREAD
     # ==========================
     def start_reader_thread(self):
         self.running = True
-        thread = threading.Thread(target=self.serial_reader)
-        thread.daemon = True
-        thread.start()
+        threading.Thread(target=self.serial_reader, daemon=True).start()
 
     def serial_reader(self):
         while self.running and self.ser:
-            try:
-                if self.ser.in_waiting:
-                    data = self.ser.read(self.ser.in_waiting)
-                    self.rx_buffer.extend(data)
-                    self.parse_buffer()
-
-                time.sleep(0.001)
-
-            except Exception as e:
-                print("Erreur lecture:", e)
-                break
+            if self.ser.in_waiting:
+                data = self.ser.read(self.ser.in_waiting)
+                self.rx_buffer.extend(data)
+                self.parse_buffer()
+            time.sleep(0.001)
 
     def parse_buffer(self):
         while len(self.rx_buffer) >= 1:
             cmd = self.rx_buffer[0]
 
-            # ===== LIVE =====
+            # LIVE
             if cmd == ord('M'):
                 if len(self.rx_buffer) < 4:
                     return
 
                 courant = self.rx_buffer[1] | (self.rx_buffer[2] << 8)
                 flag = self.rx_buffer[3]
-
                 del self.rx_buffer[:4]
 
-                if flag == 1:
-                    self.masse.set(f"{courant}")
+                self.last_courant = courant
+                self.last_flag = flag
+
+                if flag:
+                    self.masse.set(f"{courant - self.offset}")
                 else:
                     self.masse.set("...")
 
-            # ===== IDENTIFICATION =====
+            # IDENTIFICATION
             elif cmd == ord('D'):
                 if len(self.rx_buffer) < 5:
                     return
 
                 pos = self.rx_buffer[1] | (self.rx_buffer[2] << 8)
                 cur = self.rx_buffer[3] | (self.rx_buffer[4] << 8)
-
                 del self.rx_buffer[:5]
 
-                # Ici tu peux stocker les données
-                # print(f"D: pos={pos}, cur={cur}")
+                t = time.time()
+                self.data_pos.append(pos)
+                self.data_cur.append(cur)
+                self.data_time.append(t)
 
             else:
                 del self.rx_buffer[0]
 
     # ==========================
-    # CONTROLE SYSTEME
+    # TARE
+    # ==========================
+    def do_tare(self):
+        if self.last_flag == 1:
+            self.offset = self.last_courant
+            messagebox.showinfo("Tare", "Tare effectuée")
+        else:
+            messagebox.showerror("Erreur", "Balance instable !")
+
+    # ==========================
+    # CONTROLE
     # ==========================
     def configure_mode(self):
         if self.mode.get() == "identification":
             self.send_cmd(b'I')
-            self.status.set("Mode identification (boucle ouverte)")
         else:
             self.send_cmd(b'N')
-            self.status.set("Mode asservi (boucle fermée)")
 
     def stop_system(self):
         if self.ser:
             self.send_cmd(b'E')
             self.send_pwm(50)
             self.running = False
-            self.status.set("Arrêt")
 
     # ==========================
     # TEST
@@ -176,11 +176,14 @@ class App:
             messagebox.showwarning("Attention", "Pas connecté")
             return
 
-        thread = threading.Thread(target=self.run_test)
-        thread.start()
+        threading.Thread(target=self.run_test).start()
 
     def run_test(self):
         try:
+            self.data_pos.clear()
+            self.data_cur.clear()
+            self.data_time.clear()
+
             pwm = int(self.pwm_entry.get())
             signal = self.signal_type.get()
 
@@ -188,8 +191,6 @@ class App:
 
             self.send_cmd(b'S')
             time.sleep(0.1)
-
-            self.status.set("Test en cours...")
 
             if signal == "step":
                 self.send_pwm(pwm)
@@ -204,11 +205,32 @@ class App:
             self.send_cmd(b'E')
             self.send_pwm(50)
 
-            self.status.set("Test terminé")
+            self.plot_data()
 
         except Exception as e:
             messagebox.showerror("Erreur", str(e))
-            self.status.set("Erreur")
+
+    # ==========================
+    # PLOT
+    # ==========================
+    def plot_data(self):
+        if len(self.data_time) < 2:
+            return
+
+        t0 = self.data_time[0]
+        times = [t - t0 for t in self.data_time]
+
+        plt.figure()
+        plt.plot(times, self.data_cur, label="Courant")
+        plt.plot(times, self.data_pos, label="Position")
+
+        plt.title("Réponse du système")
+        plt.xlabel("Temps (s)")
+        plt.ylabel("Valeur")
+        plt.legend()
+        plt.grid()
+
+        plt.show()
 
 
 # ==========================

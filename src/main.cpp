@@ -65,6 +65,9 @@ void loop()
   uint16_t courant = 0;
   if (toggleCounter % 20 == 0)
   {
+    cli();
+    courant = courantFiltre;
+    sei();
     Serial.write('M');
     Serial.write((uint8_t *)&courant, 2);
     Serial.write(mesureValide ? 1 : 0);
