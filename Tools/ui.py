@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox
 import threading
 import time
 import serial
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
 BAUDRATE = 115200
@@ -17,13 +19,13 @@ class App:
         self.rx_buffer = bytearray()
         self.running = False
 
+        # LIVE
         self.last_courant = 0
         self.last_flag = 0
         self.offset = 0
 
-        self.data_pos = []
-        self.data_cur = []
-        self.data_time = []
+        # DATA (robuste)
+        self.data = []
 
         self.create_widgets()
 
@@ -37,7 +39,7 @@ class App:
         ttk.Label(frame, text="Port série:").grid(row=0, column=0)
         self.port_entry = ttk.Entry(frame)
         self.port_entry.grid(row=0, column=1)
-        self.port_entry.insert(0, "COM3")
+        self.port_entry.insert(0, "COM4")
 
         ttk.Button(frame, text="Connecter", command=self.connect_serial).grid(row=0, column=2)
 
@@ -57,7 +59,6 @@ class App:
         ttk.Button(frame, text="Lancer test", command=self.start_test_thread).grid(row=6, column=0, columnspan=3)
         ttk.Button(frame, text="Stop", command=self.stop_system).grid(row=7, column=0, columnspan=3)
 
-        # TARE
         ttk.Button(frame, text="Tare", command=self.do_tare).grid(row=8, column=0, columnspan=3)
 
         self.status = tk.StringVar(value="Non connecté")
@@ -91,7 +92,7 @@ class App:
             self.ser.write(bytes((ord('P'), pwm)))
 
     # ==========================
-    # THREAD
+    # THREAD LECTURE
     # ==========================
     def start_reader_thread(self):
         self.running = True
@@ -109,7 +110,7 @@ class App:
         while len(self.rx_buffer) >= 1:
             cmd = self.rx_buffer[0]
 
-            # LIVE
+            # ===== LIVE =====
             if cmd == ord('M'):
                 if len(self.rx_buffer) < 4:
                     return
@@ -126,7 +127,7 @@ class App:
                 else:
                     self.masse.set("...")
 
-            # IDENTIFICATION
+            # ===== IDENTIFICATION =====
             elif cmd == ord('D'):
                 if len(self.rx_buffer) < 5:
                     return
@@ -136,9 +137,7 @@ class App:
                 del self.rx_buffer[:5]
 
                 t = time.time()
-                self.data_pos.append(pos)
-                self.data_cur.append(cur)
-                self.data_time.append(t)
+                self.data.append((t, pos, cur))  # ✅ STRUCTURE ROBUSTE
 
             else:
                 del self.rx_buffer[0]
@@ -180,9 +179,7 @@ class App:
 
     def run_test(self):
         try:
-            self.data_pos.clear()
-            self.data_cur.clear()
-            self.data_time.clear()
+            self.data.clear()
 
             pwm = int(self.pwm_entry.get())
             signal = self.signal_type.get()
@@ -205,7 +202,7 @@ class App:
             self.send_cmd(b'E')
             self.send_pwm(50)
 
-            self.plot_data()
+            self.root.after(0, self.plot_data)
 
         except Exception as e:
             messagebox.showerror("Erreur", str(e))
@@ -214,15 +211,18 @@ class App:
     # PLOT
     # ==========================
     def plot_data(self):
-        if len(self.data_time) < 2:
+        if len(self.data) < 2:
+            messagebox.showwarning("Graphique", "Pas assez de données")
             return
 
-        t0 = self.data_time[0]
-        times = [t - t0 for t in self.data_time]
+        t0 = self.data[0][0]
+        times = [d[0] - t0 for d in self.data]
+        pos = [d[1] for d in self.data]
+        cur = [d[2] for d in self.data]
 
         plt.figure()
-        plt.plot(times, self.data_cur, label="Courant")
-        plt.plot(times, self.data_pos, label="Position")
+        plt.plot(times, cur, label="Courant")
+        plt.plot(times, pos, label="Position")
 
         plt.title("Réponse du système")
         plt.xlabel("Temps (s)")
