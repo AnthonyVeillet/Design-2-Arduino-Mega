@@ -7,6 +7,8 @@ volatile uint8_t compteurCascade = 0;
 volatile bool modeIdentification = false;
 volatile bool mesureValide = true;
 volatile uint16_t consigneCourant = 512; // Envoyer 50% = 0A par défaut
+uint16_t commandePosition = 0;
+uint16_t commandeCourant = 0;
 
 // --- PID Timer ---
 void setupTimerPID()
@@ -46,7 +48,7 @@ void tare()
     sei();
 
     initCoeffsPID_Position(0, 1.12, 0);
-    initCoeffsPI_Courant(0, 1.12);
+    initCoeffsPI_Courant(2, 5);
 }
 
 void setPositionReference(uint16_t pref)
@@ -96,10 +98,12 @@ void calculCommandePosition(uint16_t position)
     else
         commandeSaturee = false;
 
-    // consigneCourant = convertCommandePWM(commande);
-    uint16_t pwm = convertCommandePWM(commande);
+    consigneCourant = convertCommandePWM(commande);
+    commandePosition = consigneCourant;
+    // consigneCourant = 0;
+    // uint16_t pwm = convertCommandePWM(commande);
 
-    OCR3A = pwm;
+    // OCR3A = pwm;
 
     // Update valeurs mémoire
     if (!commandeSaturee)
@@ -131,7 +135,7 @@ void calculCommandeCourant(uint16_t courant)
     float r_norm = consigneCourant / 1023.0;
 
     // Calcul de l'erreur
-    float erreur = r_norm - y_norm;
+    float erreur = y_norm - r_norm;
 
     // Valeurs pour calcul commande
     float e1 = memoireAsservissementCourant.erreur1;
@@ -151,7 +155,10 @@ void calculCommandeCourant(uint16_t courant)
         commande = 0.0;
 
     // sortie PWM
-    setNewDutyCycleValue(commande);
+    // setNewDutyCycleValue(commande);
+    uint16_t pwm = convertCommandePWM(commande);
+    commandeCourant = pwm;
+    OCR3A = pwm;
 
     // Update valeurs mémoire. Seulement besoin de -1.
     if (!commandeSaturee)
@@ -179,5 +186,5 @@ ISR(TIMER2_COMPA_vect)
         calculCommandePosition(pos);
     }
     // 1000 Hz
-    // calculCommandeCourant(courant);
+    calculCommandeCourant(courant);
 }

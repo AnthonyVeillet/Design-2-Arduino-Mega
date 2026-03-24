@@ -4,6 +4,8 @@
 
 extern volatile bool modeIdentification;
 extern volatile bool mesureValide;
+extern uint16_t commandePosition;
+extern uint16_t commandeCourant;
 
 typedef struct{
     float commande1; // dernière commande

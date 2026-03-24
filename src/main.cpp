@@ -59,7 +59,6 @@ void loop()
 
       setNewDutyCycleValue(pwm / 100.0f);
     }
-    
     // Consigne position
     else if (cmd == 'R')
     {
@@ -68,7 +67,6 @@ void loop()
       uint16_t ref = Serial.read() | (Serial.read() << 8);
       setPositionReference(ref);
     }
-
     // PID position (Kp Ki Kd float)
     else if (cmd == 'G')
     {
@@ -80,7 +78,6 @@ void loop()
       Serial.readBytes((char *)&kd, 4);
       initCoeffsPID_Position(kp, ki, kd);
     }
-
     // PID courant (Kp Ki)
     else if (cmd == 'H')
     {
@@ -94,30 +91,21 @@ void loop()
   }
 
   // Envoi du courant en continu quand la position est asservie pour afficher la masse.
-  uint16_t courant = 0;
-  if (toggleCounter % 20 == 0)
+  // Envoi en continu des commandes des deux régulateurs.
+  if (toggleCounter % 10 == 0)
   {
     cli();
-    courant = courantFiltre;
-    sei();
-    Serial.write('M');
-    Serial.write((uint8_t *)&courant, 2);
-    Serial.write(mesureValide ? 1 : 0);
-  }
-
-  if (acquisitionActive)
-  {
-    cli();
-    uint16_t a0 = adcValues[0];
-    uint16_t a1 = adcValues[1];
+    uint16_t pos = positionFiltre;
+    uint16_t cur = courantFiltre;
+    uint16_t cmd_pos = commandePosition;
+    uint16_t cmd_cur = commandeCourant;
     sei();
 
-    if (toggleCounter % 10 == 0)
-    {
-      Serial.write('D');
-      Serial.write((uint8_t *)&a0, 2);
-      Serial.write((uint8_t *)&a1, 2);
-    }
+    Serial.write('T');
+    Serial.write((uint8_t *)&pos, 2);
+    Serial.write((uint8_t *)&cur, 2);
+    Serial.write((uint8_t *)&cmd_pos, 2);
+    Serial.write((uint8_t *)&cmd_cur, 2);
   }
 
   toggleCounter++;

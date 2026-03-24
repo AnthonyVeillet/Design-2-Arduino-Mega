@@ -15,14 +15,16 @@ class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Balance Asservie")
-        self.root.geometry("520x480")
+        self.root.geometry("520x520")
 
         style = ttk.Style()
         style.theme_use("clam")
 
         self.ser = None
         self.rx_buffer = bytearray()
+
         self.running = False
+        self.plot_running = False
 
         self.last_courant = 0
         self.last_flag = 0
@@ -30,13 +32,15 @@ class App:
 
         self.data = []
 
+        self.fig = None
+
         self.create_widgets()
 
+    # ================= UI =================
     def create_widgets(self):
         main = ttk.Frame(self.root, padding=15)
         main.pack(fill="both", expand=True)
 
-        # ===== CONNEXION =====
         conn = ttk.LabelFrame(main, text="Connexion", padding=10)
         conn.pack(fill="x", pady=5)
 
@@ -46,7 +50,6 @@ class App:
 
         ttk.Button(conn, text="Connecter", command=self.connect).pack(side="left")
 
-        # ===== MODE =====
         mode_frame = ttk.LabelFrame(main, text="Mode", padding=10)
         mode_frame.pack(fill="x", pady=5)
 
@@ -54,7 +57,6 @@ class App:
         ttk.Radiobutton(mode_frame, text="Asservi", variable=self.mode, value="normal").pack(side="left", padx=10)
         ttk.Radiobutton(mode_frame, text="Identification", variable=self.mode, value="identification").pack(side="left")
 
-        # ===== IDENTIFICATION =====
         ident_frame = ttk.LabelFrame(main, text="Identification", padding=10)
         ident_frame.pack(fill="x", pady=5)
 
@@ -67,7 +69,6 @@ class App:
         self.pwm_entry.insert(0, "50")
         self.pwm_entry.pack(side="left")
 
-        # ===== CONSIGNE =====
         ref_frame = ttk.LabelFrame(main, text="Position de référence", padding=10)
         ref_frame.pack(fill="x", pady=5)
 
@@ -77,14 +78,15 @@ class App:
 
         ttk.Button(ref_frame, text="Envoyer", command=self.send_ref).pack(side="left")
 
-        # ===== PID =====
         pid_frame = ttk.LabelFrame(main, text="Régulateurs", padding=10)
         pid_frame.pack(fill="x", pady=5)
 
         ttk.Label(pid_frame, text="Position (Kp Ki Kd)").grid(row=0, column=0)
+
         self.kp = ttk.Entry(pid_frame, width=5)
         self.ki = ttk.Entry(pid_frame, width=5)
         self.kd = ttk.Entry(pid_frame, width=5)
+
         self.kp.insert(0, "1")
         self.ki.insert(0, "0")
         self.kd.insert(0, "0")
@@ -93,33 +95,33 @@ class App:
         self.ki.grid(row=0, column=2)
         self.kd.grid(row=0, column=3)
 
-        ttk.Button(pid_frame, text="Appliquer", command=self.send_pid_pos).grid(row=0, column=4, padx=5)
+        ttk.Button(pid_frame, text="Appliquer", command=self.send_pid_pos).grid(row=0, column=4)
 
         ttk.Label(pid_frame, text="Courant (Kp Ki)").grid(row=1, column=0)
+
         self.kp_c = ttk.Entry(pid_frame, width=5)
         self.ki_c = ttk.Entry(pid_frame, width=5)
+
         self.kp_c.insert(0, "1")
         self.ki_c.insert(0, "0")
 
         self.kp_c.grid(row=1, column=1)
         self.ki_c.grid(row=1, column=2)
 
-        ttk.Button(pid_frame, text="Appliquer", command=self.send_pid_cur).grid(row=1, column=4, padx=5)
+        ttk.Button(pid_frame, text="Appliquer", command=self.send_pid_cur).grid(row=1, column=4)
 
-        # ===== MESURE =====
         measure_frame = ttk.LabelFrame(main, text="Mesure", padding=10)
         measure_frame.pack(fill="x", pady=5)
 
-        ttk.Label(measure_frame, text="Masse:", font=("Arial", 12)).pack(side="left")
+        ttk.Label(measure_frame, text="Masse:").pack(side="left")
 
         self.masse = tk.StringVar(value="---")
         ttk.Label(measure_frame, textvariable=self.masse, font=("Arial", 14, "bold")).pack(side="left", padx=10)
 
-        self.canvas = tk.Canvas(measure_frame, width=20, height=20, highlightthickness=0)
+        self.canvas = tk.Canvas(measure_frame, width=20, height=20)
         self.canvas.pack(side="left", padx=10)
         self.led = self.canvas.create_oval(2, 2, 18, 18, fill="red")
 
-        # ===== ACTIONS =====
         action = ttk.Frame(main)
         action.pack(pady=10)
 
@@ -127,16 +129,15 @@ class App:
         ttk.Button(action, text="Stop", command=self.stop).grid(row=0, column=1, padx=5)
         ttk.Button(action, text="Tare", command=self.tare).grid(row=0, column=2, padx=5)
 
-    # ===== SERIAL =====
+    # ================= SERIAL =================
     def connect(self):
         self.ser = serial.Serial(self.port.get(), BAUDRATE, timeout=0)
         time.sleep(2)
-        self.running = True
         threading.Thread(target=self.reader, daemon=True).start()
 
     def reader(self):
-        while self.running:
-            if self.ser.in_waiting:
+        while True:
+            if self.ser and self.ser.in_waiting:
                 self.rx_buffer.extend(self.ser.read(self.ser.in_waiting))
                 self.parse()
             time.sleep(0.001)
@@ -158,35 +159,36 @@ class App:
                 self.masse.set(f"{cur - self.offset}")
                 self.canvas.itemconfig(self.led, fill="green" if flag else "red")
 
-            elif cmd == ord('D'):
-                if len(self.rx_buffer) < 5:
+            elif cmd == ord('T'):
+                if len(self.rx_buffer) < 9:
                     return
-                pos = self.rx_buffer[1] | (self.rx_buffer[2] << 8)
-                cur = self.rx_buffer[3] | (self.rx_buffer[4] << 8)
-                del self.rx_buffer[:5]
-                self.data.append((time.time(), pos, cur))
+
+                pos, cur, cmd_pos, cmd_cur = struct.unpack('<HHHH', self.rx_buffer[1:9])
+                del self.rx_buffer[:9]
+
+                self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
 
             else:
                 del self.rx_buffer[0]
 
-    # ===== COMMANDES =====
+    # ================= COMMANDES =================
     def send(self, b):
-        self.ser.write(b)
+        if self.ser:
+            self.ser.write(b)
 
     def send_ref(self):
-        ref = int(self.pos_ref.get())
-        self.send(b'R' + struct.pack('<H', ref))
+        self.send(b'R' + struct.pack('<H', int(self.pos_ref.get())))
 
     def send_pid_pos(self):
         self.send(b'G' + struct.pack('<fff',
-                                    float(self.kp.get()),
-                                    float(self.ki.get()),
-                                    float(self.kd.get())))
+                                     float(self.kp.get()),
+                                     float(self.ki.get()),
+                                     float(self.kd.get())))
 
     def send_pid_cur(self):
         self.send(b'H' + struct.pack('<ff',
-                                    float(self.kp_c.get()),
-                                    float(self.ki_c.get())))
+                                     float(self.kp_c.get()),
+                                     float(self.ki_c.get())))
 
     def tare(self):
         if self.last_flag:
@@ -194,8 +196,16 @@ class App:
         else:
             messagebox.showerror("Erreur", "Instable")
 
+    # ================= START / STOP =================
     def start(self):
+        if self.running:
+            print("Déjà en cours")
+            return
+
+        self.running = True
         self.data.clear()
+
+        self.start_plot()
 
         pwm = int(self.pwm_entry.get())
 
@@ -209,38 +219,83 @@ class App:
                 self.send(b'P' + bytes([pwm]))
                 time.sleep(0.05)
                 self.send(b'P' + bytes([50]))
-
         else:
             self.send(b'N')
 
         self.send(b'S')
 
     def stop(self):
-        self.send(b'E')
-        self.send(b'P' + bytes([50]))
-        self.plot()
-
-    # ===== GRAPH =====
-    def plot(self):
-        if len(self.data) < 2:
+        if not self.running:
             return
 
-        t0 = self.data[0][0]
-        t = [d[0] - t0 for d in self.data]
-        pos = [d[1] for d in self.data]
-        cur = [d[2] for d in self.data]
+        self.running = False
+        self.send(b'E')
+        self.send(b'P' + bytes([50]))
 
-        plt.figure()
-        plt.plot(t, cur, label="Courant")
-        plt.plot(t, pos, label="Position")
-        plt.legend()
-        plt.title("Identification")
-        plt.xlabel("Temps (s)")
-        plt.grid()
-        plt.show()
+    # ================= GRAPH =================
+    def start_plot(self):
+        if self.fig:
+            plt.close(self.fig)
+
+        self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1)
+
+        self.line_cur, = self.ax1.plot([], [], label="Courant")
+        self.line_pos, = self.ax1.plot([], [], label="Position")
+
+        self.line_cmd_pos, = self.ax2.plot([], [], label="Cmd Position")
+        self.line_cmd_cur, = self.ax2.plot([], [], label="Cmd Courant")
+
+        self.ax1.legend()
+        self.ax2.legend()
+
+        self.plot_running = True
+        threading.Thread(target=self.update_plot_loop, daemon=True).start()
+
+        plt.show(block=False)
+
+    def update_plot_loop(self):
+        while self.plot_running:
+            if len(self.data) > 2:
+                t0 = self.data[0][0]
+
+                t = [d[0] - t0 for d in self.data]
+                pos = [d[1] for d in self.data]
+                cur = [d[2] for d in self.data]
+                cmd_pos = [d[3] for d in self.data]
+                cmd_cur = [d[4] for d in self.data]
+
+                self.line_cur.set_data(t, cur)
+                self.line_pos.set_data(t, pos)
+                self.line_cmd_pos.set_data(t, cmd_pos)
+                self.line_cmd_cur.set_data(t, cmd_cur)
+
+                self.ax1.relim()
+                self.ax1.autoscale_view()
+                self.ax2.relim()
+                self.ax2.autoscale_view()
+
+                self.fig.canvas.draw()
+                self.fig.canvas.flush_events()
+
+            time.sleep(0.1)
+
+    # ================= CLEAN EXIT =================
+    def on_close(self):
+        self.running = False
+        self.plot_running = False
+        if self.ser:
+            try:
+                self.send(b'E')
+                self.send(b'P' + bytes([50]))
+                self.ser.close()
+            except:
+                pass
+        self.root.destroy()
 
 
+# ================= MAIN =================
 if __name__ == "__main__":
     root = tk.Tk()
-    App(root)
+    app = App(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_close)
     root.mainloop()
