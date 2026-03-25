@@ -161,12 +161,6 @@ void calculCommandeCourant(uint16_t courant)
     else
         commandeSaturee = false;
 
-    // saturation
-    if (commande > 1.0)
-        commande = 1.0;
-    if (commande < 0.0)
-        commande = 0.0;
-
     // sortie PWM
     // setNewDutyCycleValue(commande);
     uint16_t pwm = convertCommandePWM(commande);
