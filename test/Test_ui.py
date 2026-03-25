@@ -2,8 +2,11 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
 import time
-import serial
+# ===== DÉBUT MODIFICATION TEST — import fake serial =====
+# import serial                      # ← désactivé pour le test
 import struct
+from fake_serial import FakeSerial    # ← simulateur Arduino
+# ===== FIN MODIFICATION TEST — import fake serial =====
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
@@ -14,8 +17,8 @@ BAUDRATE = 115200
 class App:
     def __init__(self, root):
         self.root = root
-        self.root.title("Balance Asservie")
-        self.root.geometry("520x520")
+        self.root.title("Balance Asservie — MODE TEST (sans Arduino)")
+        self.root.geometry("520x560")
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -34,18 +37,18 @@ class App:
 
         self.fig = None
 
-                # ===== DÉBUT AJOUT CALIBRATION — variables d'état =====
-        self.calib_running = False          # True pendant la calibration
-        self.calib_num_masses = 0           # Nombre de masses à calibrer
-        self.calib_adc_bits = 10            # Nombre de bits ADC (défaut 10)
-        self.calib_index = 0                # Index masse courante (0-based)
-        self.calib_masses_real = []         # Valeurs réelles saisies par l'utilisateur (g)
-        self.calib_courant_raw = []         # Valeur brute moyenne de courant par masse
-        self.calib_data_start_idx = 0       # Index dans self.data au début de la mesure courante
-        self.calib_courantRef = 0.0         # Référence courant (tare calibration)
-        self.calib_window = None            # Fenêtre Toplevel de calibration
-        self.calib_results = []             # Résultats finaux [{num, masse, courant_A}]
-        self.calib_raw_values = []          # Valeurs numériques brutes (pour linéarisation)
+        # ===== DÉBUT AJOUT CALIBRATION — variables d'état =====
+        self.calib_running = False
+        self.calib_num_masses = 0
+        self.calib_adc_bits = 10
+        self.calib_index = 0
+        self.calib_masses_real = []
+        self.calib_courant_raw = []
+        self.calib_data_start_idx = 0
+        self.calib_courantRef = 0.0
+        self.calib_window = None
+        self.calib_results = []
+        self.calib_raw_values = []
         # ===== FIN AJOUT CALIBRATION — variables d'état =====
 
         self.create_widgets()
@@ -63,6 +66,11 @@ class App:
         self.port.pack(side="left", padx=5)
 
         ttk.Button(conn, text="Connecter", command=self.connect).pack(side="left")
+
+        # ===== DÉBUT MODIFICATION TEST — indicateur mode test =====
+        ttk.Label(conn, text="  (SIMULÉ)", foreground="red",
+                  font=("Arial", 9, "bold")).pack(side="left")
+        # ===== FIN MODIFICATION TEST — indicateur mode test =====
 
         mode_frame = ttk.LabelFrame(main, text="Mode", padding=10)
         mode_frame.pack(fill="x", pady=5)
@@ -146,28 +154,24 @@ class App:
         # ===== DÉBUT AJOUT CALIBRATION — section UI principale =====
         calib_frame = ttk.LabelFrame(main, text="Calibration", padding=10)
         calib_frame.pack(fill="x", pady=5)
- 
-        # Ligne 1 : nombre de masses
+
         row1 = ttk.Frame(calib_frame)
         row1.pack(fill="x", pady=2)
         ttk.Label(row1, text="Nombre de masses :").pack(side="left")
         self.calib_num_entry = ttk.Entry(row1, width=5)
         self.calib_num_entry.insert(0, "3")
         self.calib_num_entry.pack(side="left", padx=5)
- 
-        # Ligne 2 : bits ADC
+
         row2 = ttk.Frame(calib_frame)
         row2.pack(fill="x", pady=2)
         ttk.Label(row2, text="Bits ADC :").pack(side="left")
         self.calib_bits_entry = ttk.Entry(row2, width=5)
         self.calib_bits_entry.insert(0, "10")
         self.calib_bits_entry.pack(side="left", padx=5)
- 
-        # Bouton lancer
+
         ttk.Button(calib_frame, text="Lancer la calibration",
                    command=self.calib_start).pack(pady=5)
- 
-        # Zone d'affichage des résultats (initialement vide)
+
         self.calib_results_frame = ttk.Frame(calib_frame)
         self.calib_results_frame.pack(fill="x", pady=2)
         self.calib_results_label = ttk.Label(self.calib_results_frame,
@@ -176,10 +180,44 @@ class App:
         self.calib_results_label.pack(anchor="w")
         # ===== FIN AJOUT CALIBRATION — section UI principale =====
 
+        # ===== DÉBUT MODIFICATION TEST — boutons simulation masse =====
+        sim_frame = ttk.LabelFrame(main, text="Simulation masse (TEST)", padding=10)
+        sim_frame.pack(fill="x", pady=5)
+
+        ttk.Label(sim_frame, text="Décalage courant :").pack(side="left")
+        self.sim_offset_entry = ttk.Entry(sim_frame, width=6)
+        self.sim_offset_entry.insert(0, "30")
+        self.sim_offset_entry.pack(side="left", padx=5)
+
+        ttk.Button(sim_frame, text="Ajouter masse",
+                   command=self._sim_add_mass).pack(side="left", padx=3)
+        ttk.Button(sim_frame, text="Retirer masse",
+                   command=self._sim_remove_mass).pack(side="left", padx=3)
+        # ===== FIN MODIFICATION TEST — boutons simulation masse =====
+
+    # ===== DÉBUT MODIFICATION TEST — simulation masse =====
+    def _sim_add_mass(self):
+        """Simule l'ajout d'une masse (décale le courant du simulateur)."""
+        if self.ser and isinstance(self.ser, FakeSerial):
+            try:
+                offset = int(self.sim_offset_entry.get())
+            except ValueError:
+                offset = 30
+            self.ser.simulate_add_mass(offset)
+
+    def _sim_remove_mass(self):
+        """Simule le retrait de la masse."""
+        if self.ser and isinstance(self.ser, FakeSerial):
+            self.ser.simulate_remove_mass()
+    # ===== FIN MODIFICATION TEST — simulation masse =====
+
     # ================= SERIAL =================
     def connect(self):
-        self.ser = serial.Serial(self.port.get(), BAUDRATE, timeout=0)
-        time.sleep(2)
+        # ===== DÉBUT MODIFICATION TEST — connexion simulée =====
+        self.ser = FakeSerial(self.port.get(), BAUDRATE)
+        # Pas besoin d'attendre 2s pour le boot Arduino
+        time.sleep(0.1)
+        # ===== FIN MODIFICATION TEST — connexion simulée =====
         threading.Thread(target=self.reader, daemon=True).start()
 
     def reader(self):
@@ -327,31 +365,27 @@ class App:
             time.sleep(0.1)
 
     # ===== DÉBUT AJOUT CALIBRATION — méthodes =====
- 
+
     def calib_start(self):
-        """Lance la calibration : tare puis ouvre la fenêtre de calibration."""
         if not self.ser:
             messagebox.showerror("Erreur", "Pas de connexion série.")
             return
- 
+
         if self.calib_running:
             messagebox.showwarning("Attention", "Calibration déjà en cours.")
             return
- 
-        # Lire paramètres
+
         try:
             self.calib_num_masses = int(self.calib_num_entry.get())
             self.calib_adc_bits = int(self.calib_bits_entry.get())
         except ValueError:
             messagebox.showerror("Erreur", "Nombre de masses et bits ADC doivent être des entiers.")
             return
- 
+
         if self.calib_num_masses < 1:
             messagebox.showerror("Erreur", "Il faut au moins 1 masse de calibration.")
             return
- 
-        # Tare de calibration : moyenne du courant sur les ~2 dernières secondes
-        # Les paquets T arrivent à ~50 Hz (toggleCounter % 10), donc ~100 échantillons en 2s
+
         nb_tare = min(100, len(self.data))
         if nb_tare < 10:
             messagebox.showerror("Erreur",
@@ -359,196 +393,164 @@ class App:
                                  "Assurez-vous que la connexion série est active et "
                                  "attendez quelques secondes.")
             return
- 
+
         recent_data = self.data[-nb_tare:]
         self.calib_courantRef = sum(d[2] for d in recent_data) / len(recent_data)
- 
-        # Initialiser les listes
+
         self.calib_index = 0
         self.calib_masses_real = [0.0] * self.calib_num_masses
         self.calib_courant_raw = [0.0] * self.calib_num_masses
         self.calib_running = True
- 
-        # Marquer le début de la mesure pour la première masse
+
         self.calib_data_start_idx = len(self.data)
- 
-        # Ouvrir la fenêtre de calibration
+
         self._open_calib_window()
- 
+
     def _open_calib_window(self):
-        """Crée et affiche la fenêtre de calibration."""
         if self.calib_window is not None:
             self.calib_window.destroy()
- 
+
         self.calib_window = tk.Toplevel(self.root)
         self.calib_window.title("Calibration en cours")
         self.calib_window.geometry("400x250")
         self.calib_window.resizable(False, False)
         self.calib_window.protocol("WM_DELETE_WINDOW", self.calib_stop)
- 
+
         frame = ttk.Frame(self.calib_window, padding=15)
         frame.pack(fill="both", expand=True)
- 
-        # Numéro de la masse actuelle
+
         self.calib_lbl_masse_num = ttk.Label(
             frame,
             text=f"Masse 1 / {self.calib_num_masses}",
             font=("Arial", 14, "bold")
         )
         self.calib_lbl_masse_num.pack(pady=10)
- 
-        # Instruction
+
         ttk.Label(frame,
                   text="Placez la masse sur la balance, puis entrez sa valeur réelle."
                   ).pack()
- 
-        # Champ saisie masse réelle
+
         entry_frame = ttk.Frame(frame)
         entry_frame.pack(pady=10)
         ttk.Label(entry_frame, text="Masse réelle (g) :").pack(side="left")
         self.calib_masse_entry = ttk.Entry(entry_frame, width=10)
         self.calib_masse_entry.pack(side="left", padx=5)
         self.calib_masse_entry.insert(0, "0")
- 
-        # Indicateur de lecture en cours
+
         self.calib_lbl_status = ttk.Label(frame, text="Acquisition en cours...",
                                           foreground="green")
         self.calib_lbl_status.pack(pady=5)
- 
-        # Boutons
+
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(pady=15)
- 
+
         self.calib_btn_prev = ttk.Button(btn_frame, text="Previous",
                                          command=self.calib_previous)
         self.calib_btn_prev.grid(row=0, column=0, padx=5)
- 
+
         self.calib_btn_next = ttk.Button(btn_frame, text="Next",
                                          command=self.calib_next)
         self.calib_btn_next.grid(row=0, column=1, padx=5)
- 
+
         self.calib_btn_stop = ttk.Button(btn_frame, text="Stop",
                                          command=self.calib_stop)
         self.calib_btn_stop.grid(row=0, column=2, padx=5)
- 
-        # Désactiver Previous pour la première masse
+
         self.calib_btn_prev.config(state="disabled")
- 
-        # Si une seule masse, afficher directement End
+
         if self.calib_num_masses == 1:
             self.calib_btn_next.config(text="End")
- 
+
     def _update_calib_window(self):
-        """Met à jour l'affichage de la fenêtre de calibration."""
         if self.calib_window is None:
             return
- 
+
         idx = self.calib_index
         total = self.calib_num_masses
- 
-        self.calib_lbl_masse_num.config(
-            text=f"Masse {idx + 1} / {total}"
-        )
- 
-        # Bouton Previous : désactivé si première masse
+
+        self.calib_lbl_masse_num.config(text=f"Masse {idx + 1} / {total}")
+
         if idx == 0:
             self.calib_btn_prev.config(state="disabled")
         else:
             self.calib_btn_prev.config(state="normal")
- 
-        # Bouton Next : devient End si dernière masse
+
         if idx >= total - 1:
             self.calib_btn_next.config(text="End")
         else:
             self.calib_btn_next.config(text="Next")
- 
-        # Remettre le champ de saisie avec la valeur précédemment entrée
+
         self.calib_masse_entry.delete(0, tk.END)
         self.calib_masse_entry.insert(0, str(self.calib_masses_real[idx]))
- 
+
         self.calib_lbl_status.config(text="Acquisition en cours...", foreground="green")
- 
+
     def calib_next(self):
-        """Enregistre la mesure de la masse courante et passe à la suivante (ou termine)."""
         if not self.calib_running:
             return
- 
-        # Lire la masse réelle saisie
+
         try:
             masse_val = float(self.calib_masse_entry.get())
         except ValueError:
             messagebox.showerror("Erreur", "Entrez une valeur numérique pour la masse.")
             return
- 
-        # Calculer la moyenne du courant depuis le début de la mesure
+
         current_data = self.data[self.calib_data_start_idx:]
         if len(current_data) < 5:
             messagebox.showwarning("Attention",
                                    "Pas assez d'échantillons. Attendez quelques secondes.")
             return
- 
+
         courant_moyen = sum(d[2] for d in current_data) / len(current_data)
- 
-        # Enregistrer
+
         self.calib_masses_real[self.calib_index] = masse_val
         self.calib_courant_raw[self.calib_index] = courant_moyen
- 
-        # Passer à la suite ou terminer
+
         if self.calib_index >= self.calib_num_masses - 1:
-            # Dernière masse → terminer
             self._calib_finish()
         else:
-            # Passer à la masse suivante
             self.calib_index += 1
             self.calib_data_start_idx = len(self.data)
             self._update_calib_window()
- 
+
     def calib_previous(self):
-        """Revient à la masse précédente pour refaire la mesure."""
         if not self.calib_running or self.calib_index <= 0:
             return
- 
+
         self.calib_index -= 1
-        # Réinitialiser le début de mesure pour cette masse
         self.calib_data_start_idx = len(self.data)
         self._update_calib_window()
- 
+
     def calib_stop(self):
-        """Arrête la calibration sans terminer."""
         self.calib_running = False
         if self.calib_window is not None:
             self.calib_window.destroy()
             self.calib_window = None
         messagebox.showinfo("Calibration", "Calibration annulée.")
- 
+
     def _calib_finish(self):
-        """Termine la calibration, convertit en ampères, affiche les résultats."""
         self.calib_running = False
- 
-        # Fermer la fenêtre
+
         if self.calib_window is not None:
             self.calib_window.destroy()
             self.calib_window = None
- 
-        # Conversion : soustraire courantRef, puis convertir en ampères
-        # Plage ADC : 0 à (2^N - 1) correspond à -1.5 A à +1.5 A
+
         adc_max = (2 ** self.calib_adc_bits) - 1
-        plage_courant = 3.0  # -1.5 A à +1.5 A
- 
+        plage_courant = 3.0
+
         self.calib_results = []
         self.calib_raw_values = []
- 
+
         for i in range(self.calib_num_masses):
             raw = self.calib_courant_raw[i]
             delta_raw = raw - self.calib_courantRef
             courant_A = delta_raw * plage_courant / adc_max
- 
+
             self.calib_results.append({
                 "num": i + 1,
                 "masse": self.calib_masses_real[i],
                 "courant_A": courant_A,
             })
-            # Conserver les valeurs numériques brutes pour linéarisation future
             self.calib_raw_values.append({
                 "num": i + 1,
                 "masse": self.calib_masses_real[i],
@@ -556,36 +558,29 @@ class App:
                 "courant_ref": self.calib_courantRef,
                 "delta_raw": delta_raw,
             })
- 
-        # Afficher les résultats dans la section Calibration de la fenêtre principale
+
         self._display_calib_results()
- 
         messagebox.showinfo("Calibration", "Calibration terminée avec succès !")
- 
+
     def _display_calib_results(self):
-        """Affiche les résultats de calibration dans la fenêtre principale."""
-        # Effacer l'ancien contenu
         for widget in self.calib_results_frame.winfo_children():
             widget.destroy()
- 
-        # En-tête
+
         header = ttk.Label(self.calib_results_frame,
                            text="Résultats de calibration :",
                            font=("Arial", 10, "bold"))
         header.pack(anchor="w", pady=(5, 2))
- 
-        # Tableau simple avec labels
+
         table = ttk.Frame(self.calib_results_frame)
         table.pack(fill="x")
- 
-        # En-têtes de colonnes
+
         ttk.Label(table, text="#", width=4, font=("Arial", 9, "bold")).grid(
             row=0, column=0, padx=2)
         ttk.Label(table, text="Masse (g)", width=12, font=("Arial", 9, "bold")).grid(
             row=0, column=1, padx=2)
         ttk.Label(table, text="Courant (A)", width=14, font=("Arial", 9, "bold")).grid(
             row=0, column=2, padx=2)
- 
+
         for i, res in enumerate(self.calib_results):
             ttk.Label(table, text=str(res["num"]), width=4).grid(
                 row=i + 1, column=0, padx=2)
@@ -593,22 +588,17 @@ class App:
                 row=i + 1, column=1, padx=2)
             ttk.Label(table, text=f"{res['courant_A']:.6f}", width=14).grid(
                 row=i + 1, column=2, padx=2)
- 
+
     def get_calib_raw_values(self):
-        """Retourne les valeurs numériques brutes de calibration pour linéarisation.
- 
-        Retourne une liste de dicts :
-            [{"num", "masse", "courant_raw", "courant_ref", "delta_raw"}, ...]
-        """
         return self.calib_raw_values
- 
+
     # ===== FIN AJOUT CALIBRATION — méthodes =====
- 
+
     # ================= CLEAN EXIT =================
     def on_close(self):
         self.running = False
         self.plot_running = False
- 
+
         # ===== DÉBUT AJOUT CALIBRATION — nettoyage =====
         self.calib_running = False
         if self.calib_window is not None:
@@ -617,7 +607,7 @@ class App:
             except:
                 pass
         # ===== FIN AJOUT CALIBRATION — nettoyage =====
- 
+
         if self.ser:
             try:
                 self.send(b'E')
@@ -626,8 +616,8 @@ class App:
             except:
                 pass
         self.root.destroy()
- 
- 
+
+
 # ================= MAIN =================
 if __name__ == "__main__":
     root = tk.Tk()

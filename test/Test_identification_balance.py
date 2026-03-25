@@ -8,8 +8,11 @@ from pathlib import Path
 from typing import List, Tuple
 
 import matplotlib.pyplot as plt
-import serial
-from serial.tools import list_ports
+# ===== DÉBUT MODIFICATION TEST — import fake serial =====
+# import serial
+# from serial.tools import list_ports
+from fake_serial import FakeSerial
+# ===== FIN MODIFICATION TEST — import fake serial =====
 
 BAUDRATE = 115200
 SAMPLE_RATE_HZ = 500.0
@@ -71,49 +74,24 @@ def ask_test_type() -> Tuple[str, str, float]:
         print("Entrée invalide. Entre 0 ou 1.")
 
 
+# ===== DÉBUT MODIFICATION TEST — choose_serial_port remplacé =====
 def choose_serial_port() -> str:
-    ports = list(list_ports.comports())
-
-    if not ports:
-        print("Aucun port série détecté automatiquement.")
-        while True:
-            port = input("Entre quand même le nom du port (ex: COM5 ou /dev/ttyACM0) : ").strip()
-            if port:
-                return port
-            print("Entrée invalide. Le nom du port ne peut pas être vide.")
-
-    print("Ports série détectés :")
-    available = []
-    for p in ports:
-        available.append(p.device)
-        description = f" - {p.description}" if p.description else ""
-        print(f"  - {p.device}{description}")
-
-    if len(available) == 1:
-        only_port = available[0]
-        if ask_yes_no(f"Utiliser automatiquement {only_port} ? (O/N) : "):
-            return only_port
-
-    available_lower = {p.lower(): p for p in available}
-    while True:
-        port = input("Entre exactement le port à utiliser : ").strip()
-        if not port:
-            print("Entrée invalide. Le nom du port ne peut pas être vide.")
-            continue
-        if port.lower() in available_lower:
-            return available_lower[port.lower()]
-        print("Port invalide. Choisis un port affiché dans la liste.")
+    """En mode test, retourne toujours 'FAKE'."""
+    print("MODE TEST : utilisation du port série simulé (FakeSerial)")
+    return "FAKE"
+# ===== FIN MODIFICATION TEST — choose_serial_port remplacé =====
 
 
-def open_serial_port(port: str) -> serial.Serial:
-    ser = serial.Serial(port=port, baudrate=BAUDRATE, timeout=0, write_timeout=1)
-    time.sleep(ARDUINO_BOOT_DELAY_S)
-    ser.reset_input_buffer()
-    ser.reset_output_buffer()
+# ===== DÉBUT MODIFICATION TEST — open_serial_port remplacé =====
+def open_serial_port(port: str) -> FakeSerial:
+    """En mode test, crée un FakeSerial au lieu de serial.Serial."""
+    ser = FakeSerial(port=port, baudrate=BAUDRATE)
+    time.sleep(0.2)  # Pas besoin d'attendre 2s
     return ser
+# ===== FIN MODIFICATION TEST — open_serial_port remplacé =====
 
 
-def wait_for_byte(ser: serial.Serial, expected: bytes, timeout_s: float) -> None:
+def wait_for_byte(ser, expected: bytes, timeout_s: float) -> None:
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         b = ser.read(1)
@@ -125,24 +103,21 @@ def wait_for_byte(ser: serial.Serial, expected: bytes, timeout_s: float) -> None
     raise TimeoutError(f"Octet attendu non reçu: {expected!r}")
 
 
-# IMPORTANT:
-# Avec le protocole Arduino actuel, il faut enlever l'ACK 'D' dans le bloc cmd == 'P'
-# de main_ident.cpp, sinon cet octet se mélange aux données binaires et casse la lecture.
-def send_pwm(ser: serial.Serial, pwm_percent: int) -> None:
+def send_pwm(ser, pwm_percent: int) -> None:
     if not (0 <= pwm_percent <= 100):
         raise ValueError("pwm_percent doit être entre 0 et 100")
     ser.write(bytes((ord('P'), pwm_percent)))
     ser.flush()
 
 
-def send_start(ser: serial.Serial) -> None:
+def send_start(ser) -> None:
     ser.reset_input_buffer()
     ser.write(b'S')
     ser.flush()
     wait_for_byte(ser, b'O', timeout_s=0.5)
 
 
-def send_stop(ser: serial.Serial) -> None:
+def send_stop(ser) -> None:
     ser.write(b'E')
     ser.flush()
     time.sleep(0.05)
@@ -150,7 +125,7 @@ def send_stop(ser: serial.Serial) -> None:
 
 
 def pump_samples_from_serial(
-    ser: serial.Serial,
+    ser,
     rx_buffer: bytearray,
     samples: List[Sample],
     next_k: int,
@@ -170,7 +145,7 @@ def pump_samples_from_serial(
 
 
 def collect_constant_phase(
-    ser: serial.Serial,
+    ser,
     duration_s: float,
     start_k: int,
     pwm_value: int,
@@ -185,7 +160,6 @@ def collect_constant_phase(
         if ser.in_waiting == 0:
             time.sleep(SERIAL_POLL_SLEEP_S)
 
-    # Petite vidange pour récupérer les derniers octets déjà arrivés.
     flush_deadline = time.monotonic() + 0.02
     while time.monotonic() < flush_deadline:
         next_k = pump_samples_from_serial(ser, rx_buffer, samples, next_k, pwm_value)
@@ -196,7 +170,7 @@ def collect_constant_phase(
 
 
 def collect_test_phase(
-    ser: serial.Serial,
+    ser,
     on_duration_s: float,
     post_zero_s: float,
     start_k: int,
@@ -228,7 +202,6 @@ def collect_test_phase(
         if ser.in_waiting == 0:
             time.sleep(SERIAL_POLL_SLEEP_S)
 
-    # Petite vidange pour récupérer les derniers octets déjà arrivés.
     flush_deadline = time.monotonic() + 0.02
     while time.monotonic() < flush_deadline:
         next_k = pump_samples_from_serial(ser, rx_buffer, samples, next_k, current_pwm)
@@ -315,11 +288,10 @@ def plot_and_save(
     plt.show()
 
 
-def run_one_test(ser: serial.Serial) -> None:
+def run_one_test(ser) -> None:
     send_pwm(ser, 50)
     time.sleep(0.05)
     ser.reset_input_buffer()
-
 
     test_label, test_name_file, on_duration_s = ask_test_type()
     pwm_value = ask_int_in_range(
@@ -374,8 +346,6 @@ def run_one_test(ser: serial.Serial) -> None:
     csv_path = DATA_DIR / f"{test_name_file}_{pwm_value}.csv"
     png_path = DATA_DIR / f"{test_name_file}_{pwm_value}.png"
 
-
-
     all_samples = ref_samples + test_samples
 
     write_csv(
@@ -398,84 +368,84 @@ def run_one_test(ser: serial.Serial) -> None:
 
 
 # ===== DÉBUT AJOUT CALIBRATION — constantes =====
-CALIB_TARE_DURATION_S = 5.0        # Durée du tare de calibration (secondes)
-CALIB_MEASURE_DURATION_S = 3.0     # Durée d'acquisition par masse (secondes)
+CALIB_TARE_DURATION_S = 5.0
+CALIB_MEASURE_DURATION_S = 3.0
 CALIB_DATA_DIR = BASE_DIR / "dataCalibration"
 # ===== FIN AJOUT CALIBRATION — constantes =====
- 
- 
+
+
 # ===== DÉBUT AJOUT CALIBRATION — fonctions =====
- 
+
 @dataclass
 class CalibrationResult:
-    """Résultat de calibration pour une masse."""
-    num: int                # Numéro de la masse (1-based)
-    masse_reelle: float     # Masse réelle en grammes
-    courant_raw: float      # Valeur numérique brute moyenne du courant
-    courant_ref: float      # Valeur de référence du courant (tare)
-    delta_raw: float        # courant_raw - courant_ref
-    courant_amperes: float  # Valeur convertie en ampères
- 
- 
+    num: int
+    masse_reelle: float
+    courant_raw: float
+    courant_ref: float
+    delta_raw: float
+    courant_amperes: float
+
+
 def collect_calib_samples(
-    ser: serial.Serial,
+    ser,
     duration_s: float,
 ) -> List[int]:
     """Collecte les valeurs brutes de courant pendant une durée donnée.
- 
-    Utilise le protocole d'acquisition existant (paquets de 4 octets :
-    2 octets position + 2 octets courant).
- 
-    Retourne la liste des valeurs de courant brutes collectées.
+
+    Note : Le FakeSerial envoie des paquets 'T' (9 octets). Ici on utilise
+    le protocole d'acquisition (paquets de 4 octets bruts) envoyé quand
+    acquisitionActive est true. Avec le FakeSerial, on parse les paquets 'T'
+    pour extraire le courant.
     """
     rx_buffer = bytearray()
     courant_values: List[int] = []
     deadline = time.monotonic() + duration_s
- 
+
     while time.monotonic() < deadline:
         waiting = ser.in_waiting
         if waiting > 0:
             rx_buffer.extend(ser.read(waiting))
- 
-        # Parser les paquets de 4 octets (position u16 + courant u16)
-        while len(rx_buffer) >= 4:
-            _position, courant = struct.unpack_from('<HH', rx_buffer, 0)
-            del rx_buffer[:4]
-            courant_values.append(courant)
- 
+
+        # Le FakeSerial envoie des paquets 'T' + 8 octets (comme main.cpp loop)
+        # On parse ces paquets pour en extraire le courant
+        while len(rx_buffer) >= 9:
+            if rx_buffer[0] == ord('T'):
+                _pos, courant, _cmd_pos, _cmd_cur = struct.unpack_from('<HHHH', rx_buffer, 1)
+                del rx_buffer[:9]
+                courant_values.append(courant)
+            else:
+                # Skip un octet inconnu
+                del rx_buffer[0]
+
         if ser.in_waiting == 0:
             time.sleep(SERIAL_POLL_SLEEP_S)
- 
+
     # Vidange finale
-    flush_deadline = time.monotonic() + 0.02
+    flush_deadline = time.monotonic() + 0.05
     while time.monotonic() < flush_deadline:
         waiting = ser.in_waiting
         if waiting > 0:
             rx_buffer.extend(ser.read(waiting))
-        while len(rx_buffer) >= 4:
-            _position, courant = struct.unpack_from('<HH', rx_buffer, 0)
-            del rx_buffer[:4]
-            courant_values.append(courant)
+        while len(rx_buffer) >= 9:
+            if rx_buffer[0] == ord('T'):
+                _pos, courant, _cmd_pos, _cmd_cur = struct.unpack_from('<HHHH', rx_buffer, 1)
+                del rx_buffer[:9]
+                courant_values.append(courant)
+            else:
+                del rx_buffer[0]
         if ser.in_waiting == 0:
             time.sleep(SERIAL_POLL_SLEEP_S)
- 
+
     return courant_values
- 
- 
+
+
 def convert_raw_to_amperes(delta_raw: float, adc_bits: int) -> float:
-    """Convertit une valeur brute relative (après soustraction du courantRef)
-    en ampères.
- 
-    La plage de lecture du capteur de courant est de -1.5 A à +1.5 A,
-    mappée sur 0 à (2^adc_bits - 1).
-    """
     adc_max = (2 ** adc_bits) - 1
-    plage_courant = 3.0  # -1.5 A à +1.5 A
+    plage_courant = 3.0
     return delta_raw * plage_courant / adc_max
- 
- 
+
+
 def write_calib_csv(csv_path: Path, results: List[CalibrationResult]) -> None:
-    """Enregistre les résultats de calibration dans un fichier CSV."""
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow([
@@ -495,71 +465,58 @@ def write_calib_csv(csv_path: Path, results: List[CalibrationResult]) -> None:
                 f"{r.delta_raw:.6f}",
                 f"{r.courant_amperes:.6f}",
             ])
- 
- 
-def run_calibration(ser: serial.Serial) -> List[CalibrationResult]:
-    """Exécute la procédure de calibration en ligne de commande.
- 
-    Étapes :
-    1) Tare de calibration (5 s sans masse) → courantRef
-    2) Pour chaque masse de calibration :
-       - L'utilisateur place la masse et entre sa valeur réelle
-       - Acquisition pendant CALIB_MEASURE_DURATION_S secondes
-       - Possibilité de refaire (Previous) ou passer (Next)
-    3) Conversion des valeurs brutes en ampères
-    4) Sauvegarde CSV
- 
-    Retourne la liste des CalibrationResult (valeurs brutes conservées
-    pour linéarisation future).
-    """
+
+
+def run_calibration(ser) -> List[CalibrationResult]:
     CALIB_DATA_DIR.mkdir(parents=True, exist_ok=True)
- 
-    # Paramètres utilisateur
+
     num_masses = ask_int_in_range(
         "Combien de masses de calibration ? : ", 1, 50
     )
     adc_bits = ask_int_in_range(
         "Nombre de bits de l'ADC ? : ", 8, 16
     )
- 
-    # S'assurer que le système est en mode normal (asservi)
+
     ser.write(b'N')
     ser.flush()
     time.sleep(0.05)
- 
-    # Vérifier que la balance est au repos
+
     is_ready = ask_yes_no(
         "La balance est-elle au repos, SANS aucune masse ? (O/N) : "
     )
     if not is_ready:
         print("Place la balance au repos sans masse, puis relance la calibration.")
         return []
- 
-    # --- Tare de calibration ---
+
     print(f"\nTare de calibration en cours ({CALIB_TARE_DURATION_S} secondes)...")
     print("Ne pas toucher à la balance.")
- 
-    send_start(ser)
+
+    # ===== DÉBUT MODIFICATION TEST — pas de send_start pour tare =====
+    # Le FakeSerial envoie des 'T' en continu, pas besoin de send_start
     tare_values = collect_calib_samples(ser, CALIB_TARE_DURATION_S)
-    send_stop(ser)
- 
+    # ===== FIN MODIFICATION TEST =====
+
     if not tare_values:
         print("Erreur : aucune donnée reçue pendant le tare.")
         return []
- 
+
     courant_ref = sum(tare_values) / len(tare_values)
     print(f"courantRef = {courant_ref:.6f} ({len(tare_values)} échantillons)")
- 
-    # --- Mesure de chaque masse ---
+
     masses_reelles: List[float] = [0.0] * num_masses
     courants_raw: List[float] = [0.0] * num_masses
- 
+
     index = 0
     while index < num_masses:
         print(f"\n--- Masse {index + 1} / {num_masses} ---")
         print("Place la masse de calibration sur la balance.")
- 
-        # Saisir la valeur réelle
+
+        # ===== DÉBUT MODIFICATION TEST — simulation masse =====
+        print("  [TEST] Pour simuler une masse, le FakeSerial utilise un")
+        print("  décalage de courant. Tu peux appeler ser.simulate_add_mass(N)")
+        print("  ou simplement continuer (le courant sera ~512 ± bruit).")
+        # ===== FIN MODIFICATION TEST =====
+
         while True:
             raw_input_val = input(f"Valeur réelle de la masse {index + 1} (en grammes) : ").strip()
             try:
@@ -567,38 +524,45 @@ def run_calibration(ser: serial.Serial) -> List[CalibrationResult]:
                 break
             except ValueError:
                 print("Entrée invalide. Entre un nombre.")
- 
+
         masses_reelles[index] = masse_val
- 
-        # Attendre que l'utilisateur soit prêt
+
+        # ===== DÉBUT MODIFICATION TEST — simuler offset masse =====
+        sim_offset = ask_int_in_range(
+            f"[TEST] Décalage courant à simuler pour cette masse (0–200) : ", 0, 200
+        )
+        ser.simulate_add_mass(sim_offset)
+        time.sleep(0.1)  # Laisser quelques paquets avec le nouvel offset
+        # ===== FIN MODIFICATION TEST =====
+
         input("Appuie sur Entrée quand la balance est stable pour lancer l'acquisition...")
- 
-        # Acquisition
+
         print(f"Acquisition en cours ({CALIB_MEASURE_DURATION_S} secondes)...")
-        send_start(ser)
         values = collect_calib_samples(ser, CALIB_MEASURE_DURATION_S)
-        send_stop(ser)
- 
+
+        # ===== DÉBUT MODIFICATION TEST — retirer masse simulée =====
+        ser.simulate_remove_mass()
+        # ===== FIN MODIFICATION TEST =====
+
         if not values:
             print("Attention : aucune donnée reçue. Réessaie.")
             continue
- 
+
         courant_moyen = sum(values) / len(values)
         courants_raw[index] = courant_moyen
         delta = courant_moyen - courant_ref
         courant_A = convert_raw_to_amperes(delta, adc_bits)
- 
+
         print(f"  Courant brut moyen : {courant_moyen:.2f}")
         print(f"  Delta (brut - ref) : {delta:.2f}")
         print(f"  Courant (A)        : {courant_A:.6f}")
         print(f"  ({len(values)} échantillons)")
- 
-        # Navigation
+
         if index < num_masses - 1:
             choix_prompt = "(N)ext / (P)revious / (S)top : "
         else:
             choix_prompt = "(E)nd / (P)revious / (S)top : "
- 
+
         while True:
             choix = input(choix_prompt).strip().lower()
             if choix in {"n", "next", "e", "end"}:
@@ -616,15 +580,14 @@ def run_calibration(ser: serial.Serial) -> List[CalibrationResult]:
                 return []
             else:
                 print("Choix invalide.")
- 
-    # --- Calcul final et conversion ---
+
     print("\n=== Résultats de calibration ===")
     results: List[CalibrationResult] = []
- 
+
     for i in range(num_masses):
         delta_raw = courants_raw[i] - courant_ref
         courant_A = convert_raw_to_amperes(delta_raw, adc_bits)
- 
+
         result = CalibrationResult(
             num=i + 1,
             masse_reelle=masses_reelles[i],
@@ -634,20 +597,19 @@ def run_calibration(ser: serial.Serial) -> List[CalibrationResult]:
             courant_amperes=courant_A,
         )
         results.append(result)
- 
+
         print(f"  Masse {i + 1}: {masses_reelles[i]:.2f} g → "
               f"brut={courants_raw[i]:.2f}, "
               f"delta={delta_raw:.2f}, "
               f"courant={courant_A:.6f} A")
- 
-    # --- Sauvegarde CSV ---
+
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     csv_path = CALIB_DATA_DIR / f"calibration_{timestamp}.csv"
     write_calib_csv(csv_path, results)
     print(f"\nRésultats enregistrés : {csv_path}")
- 
+
     return results
- 
+
 # ===== FIN AJOUT CALIBRATION — fonctions =====
 
 
@@ -655,14 +617,18 @@ def main() -> None:
     ensure_data_dir()
     print(f"Dossier de données : {DATA_DIR}")
     print()
- 
+    print("=" * 50)
+    print("  MODE TEST — Arduino simulé (FakeSerial)")
+    print("=" * 50)
+    print()
+
     port = choose_serial_port()
     ser = None
- 
+
     try:
         ser = open_serial_port(port)
         print(f"Port ouvert : {port}")
- 
+
         while True:
             # ===== DÉBUT AJOUT CALIBRATION — menu principal =====
             print("\nQue veux-tu faire ?")
@@ -670,7 +636,7 @@ def main() -> None:
             print("  1 = Calibration")
             print("  Q = Quitter")
             choix = input("Choix : ").strip().lower()
- 
+
             if choix == "0":
                 run_one_test(ser)
             elif choix == "1":
@@ -684,13 +650,9 @@ def main() -> None:
                 print("Choix invalide.")
                 continue
             # ===== FIN AJOUT CALIBRATION — menu principal =====
- 
+
     except KeyboardInterrupt:
         print("\nArrêt demandé par l'utilisateur.")
-    except serial.SerialException as e:
-        print(f"Erreur série : {e}")
-    except TimeoutError as e:
-        print(f"Timeout : {e}")
     except Exception as e:
         print(f"Erreur : {e}")
     finally:
