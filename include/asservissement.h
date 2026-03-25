@@ -15,6 +15,12 @@ typedef struct{
 } MemoireAsservissement_t;
 
 typedef struct{
+    uint16_t consigne1;
+    uint16_t consigne2;
+    uint16_t consigne3;
+} MemoireConsigneCourant_t;
+
+typedef struct{
     float b0;
     float b1;
     float b2;

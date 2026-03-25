@@ -5,8 +5,11 @@
 
 volatile uint8_t compteurCascade = 0;
 volatile bool modeIdentification = false;
-volatile bool mesureValide = true;
+
 volatile uint16_t consigneCourant = 512; // Envoyer 50% = 0A par défaut
+volatile bool mesureValide = false;
+MemoireConsigneCourant_t memoireConsigne = {0};
+
 uint16_t commandePosition = 0;
 uint16_t commandeCourant = 0;
 
@@ -48,7 +51,7 @@ void tare()
     sei();
 
     initCoeffsPID_Position(0, 1.12, 0);
-    initCoeffsPI_Courant(2, 5);
+    initCoeffsPI_Courant(1, 1);
 }
 
 void setPositionReference(uint16_t pref)
@@ -106,6 +109,16 @@ void calculCommandePosition(uint16_t position)
     // OCR3A = pwm;
 
     // Update valeurs mémoire
+    memoireConsigne.consigne1 = consigneCourant;
+    memoireConsigne.consigne2 = memoireConsigne.consigne1;
+    memoireConsigne.consigne3 = memoireConsigne.consigne2;
+    if (memoireConsigne.consigne3 - memoireConsigne.consigne1 <= 2)
+    {
+        mesureValide = true;
+    }
+    else
+        mesureValide = false;
+
     if (!commandeSaturee)
     {
         // Anti-windup
@@ -135,7 +148,7 @@ void calculCommandeCourant(uint16_t courant)
     float r_norm = consigneCourant / 1023.0;
 
     // Calcul de l'erreur
-    float erreur = y_norm - r_norm;
+    float erreur = r_norm - y_norm;
 
     // Valeurs pour calcul commande
     float e1 = memoireAsservissementCourant.erreur1;

@@ -106,6 +106,7 @@ void loop()
     Serial.write((uint8_t *)&cur, 2);
     Serial.write((uint8_t *)&cmd_pos, 2);
     Serial.write((uint8_t *)&cmd_cur, 2);
+    Serial.write(mesureValide ? 1 : 0);
   }
 
   toggleCounter++;

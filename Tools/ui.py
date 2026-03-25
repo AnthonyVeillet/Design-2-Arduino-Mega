@@ -9,6 +9,7 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
 BAUDRATE = 115200
+WINDOW_TIME = 10  # secondes affichées (oscilloscope)
 
 
 class App:
@@ -146,28 +147,27 @@ class App:
         while len(self.rx_buffer) >= 1:
             cmd = self.rx_buffer[0]
 
-            if cmd == ord('M'):
-                if len(self.rx_buffer) < 4:
+            if cmd == ord('T'):
+                if len(self.rx_buffer) < 10:
                     return
-                cur = self.rx_buffer[1] | (self.rx_buffer[2] << 8)
-                flag = self.rx_buffer[3]
-                del self.rx_buffer[:4]
+
+                pos, cur, cmd_pos, cmd_cur = struct.unpack('<HHHH', self.rx_buffer[1:9])
+                flag = self.rx_buffer[9]
+
+                del self.rx_buffer[:10]
 
                 self.last_courant = cur
                 self.last_flag = flag
 
                 self.masse.set(f"{cur - self.offset}")
-                self.canvas.itemconfig(self.led, fill="green" if flag else "red")
 
-            elif cmd == ord('T'):
-                if len(self.rx_buffer) < 9:
-                    return
-
-                pos, cur, cmd_pos, cmd_cur = struct.unpack('<HHHH', self.rx_buffer[1:9])
-                del self.rx_buffer[:9]
+                # LED basée sur le flag Arduino
+                if flag:
+                    self.canvas.itemconfig(self.led, fill="green")
+                else:
+                    self.canvas.itemconfig(self.led, fill="red")
 
                 self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
-
             else:
                 del self.rx_buffer[0]
 
@@ -191,15 +191,11 @@ class App:
                                      float(self.ki_c.get())))
 
     def tare(self):
-        if self.last_flag:
-            self.offset = self.last_courant
-        else:
-            messagebox.showerror("Erreur", "Instable")
+        self.offset = self.last_courant
 
     # ================= START / STOP =================
     def start(self):
         if self.running:
-            print("Déjà en cours")
             return
 
         self.running = True
@@ -211,28 +207,19 @@ class App:
 
         if self.mode.get() == "identification":
             self.send(b'I')
-
-            if self.signal_type.get() == "step":
-                self.send(b'P' + bytes([pwm]))
-
-            elif self.signal_type.get() == "pulse":
-                self.send(b'P' + bytes([pwm]))
-                time.sleep(0.05)
-                self.send(b'P' + bytes([50]))
+            self.send(b'P' + bytes([pwm]))
         else:
             self.send(b'N')
 
         self.send(b'S')
 
     def stop(self):
-        if not self.running:
-            return
-
         self.running = False
+        self.plot_running = False
         self.send(b'E')
         self.send(b'P' + bytes([50]))
 
-    # ================= GRAPH =================
+    # ================= GRAPH OSCILLO =================
     def start_plot(self):
         if self.fig:
             plt.close(self.fig)
@@ -249,35 +236,44 @@ class App:
         self.ax2.legend()
 
         self.plot_running = True
-        threading.Thread(target=self.update_plot_loop, daemon=True).start()
+        self.update_plot()
 
         plt.show(block=False)
 
-    def update_plot_loop(self):
-        while self.plot_running:
-            if len(self.data) > 2:
-                t0 = self.data[0][0]
+    def update_plot(self):
+        if not self.plot_running:
+            return
 
-                t = [d[0] - t0 for d in self.data]
-                pos = [d[1] for d in self.data]
-                cur = [d[2] for d in self.data]
-                cmd_pos = [d[3] for d in self.data]
-                cmd_cur = [d[4] for d in self.data]
+        if len(self.data) > 2:
+            now = time.time()
 
-                self.line_cur.set_data(t, cur)
-                self.line_pos.set_data(t, pos)
-                self.line_cmd_pos.set_data(t, cmd_pos)
-                self.line_cmd_cur.set_data(t, cmd_cur)
+            # fenêtre glissante
+            self.data = [d for d in self.data if now - d[0] <= WINDOW_TIME]
 
-                self.ax1.relim()
-                self.ax1.autoscale_view()
-                self.ax2.relim()
-                self.ax2.autoscale_view()
+            t0 = self.data[0][0]
 
-                self.fig.canvas.draw()
-                self.fig.canvas.flush_events()
+            t = [d[0] - t0 for d in self.data]
+            pos = [d[1] for d in self.data]
+            cur = [d[2] for d in self.data]
+            cmd_pos = [d[3] for d in self.data]
+            cmd_cur = [d[4] for d in self.data]
 
-            time.sleep(0.1)
+            self.line_cur.set_data(t, cur)
+            self.line_pos.set_data(t, pos)
+            self.line_cmd_pos.set_data(t, cmd_pos)
+            self.line_cmd_cur.set_data(t, cmd_cur)
+
+            self.ax1.set_xlim(max(0, t[-1] - WINDOW_TIME), t[-1])
+            self.ax2.set_xlim(max(0, t[-1] - WINDOW_TIME), t[-1])
+
+            self.ax1.relim()
+            self.ax1.autoscale_view()
+            self.ax2.relim()
+            self.ax2.autoscale_view()
+
+            self.fig.canvas.draw_idle()
+
+        self.root.after(50, self.update_plot)  # 20 Hz
 
     # ================= CLEAN EXIT =================
     def on_close(self):
@@ -293,7 +289,6 @@ class App:
         self.root.destroy()
 
 
-# ================= MAIN =================
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
