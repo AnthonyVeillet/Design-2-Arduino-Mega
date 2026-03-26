@@ -156,7 +156,7 @@ void calculCommandeCourant(uint16_t courant)
 
     // Calcul commande PID
     commande = u1 + coeffCourant.b0 * erreur + coeffCourant.b1 * e1;
-    if (commande > 1.0 || commande < 0.0)
+    if (commande > 1.0 || commande < -1.0)
         commandeSaturee = true;
     else
         commandeSaturee = false;
