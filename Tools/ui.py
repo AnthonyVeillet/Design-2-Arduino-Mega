@@ -209,8 +209,9 @@ class App:
         ttk.Button(action, text="Start", command=self.start).grid(row=0, column=0, padx=5)
         ttk.Button(action, text="Stop", command=self.stop).grid(row=0, column=1, padx=5)
         ttk.Button(action, text="Tare", command=self.tare).grid(row=0, column=2, padx=5)
-        ttk.Button(action, text="Identification complète", command=self.run_identification).grid(row=0, column=3, padx=5)
-
+        ttk.Button(action, text="Reset PID", command=self.reset_pid).grid(row=0, column=3, padx=5)
+        ttk.Button(action, text="Identification complète", command=self.run_identification).grid(row=0, column=4, padx=5)
+        
         # ===== DÉBUT AJOUT — section Calibration dans la fenêtre principale =====
         self._create_calibration_section(main)
         # ===== FIN AJOUT — section Calibration dans la fenêtre principale =====
@@ -765,6 +766,9 @@ class App:
         # ===== FIN AJOUT — envoi en mode simulation =====
         if self.ser:
             self.ser.write(b)
+            
+    def reset_pid(self):
+        self.send(b'Z')
 
     # ===== DÉBUT AJOUT — interprétation commandes en simulation =====
     def _sim_handle_command(self, data):
@@ -783,6 +787,10 @@ class App:
             self.sim_pwm = 50
             self.sim_flag_counter = 0
         elif cmd == b'I':
+            self.sim_flag_counter = 0
+        elif cmd == b'Z':
+            # reset PID simulé = retour état stable
+            self.sim_pwm = 50
             self.sim_flag_counter = 0
         # S, E, G, H : on ignore silencieusement en simulation
     # ===== FIN AJOUT — interprétation commandes en simulation =====

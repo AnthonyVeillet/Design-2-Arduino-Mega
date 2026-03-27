@@ -70,6 +70,8 @@ void initCoeffsPID_Position(float Kp, float Ki, float Kd)
 
 void resetPID()
 {
+    initCoeffsPID_Position(0, 1.12, 0);
+    initCoeffsPI_Courant(0.1578014, 40.2026858);
     memoireAsservissementPos = {0};
     memoireAsservissementCourant = {0};
 }

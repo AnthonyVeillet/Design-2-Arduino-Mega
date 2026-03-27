@@ -51,6 +51,10 @@ void loop()
       resetPID();
       modeIdentification = false;
     }
+    else if (cmd == 'Z')
+    {
+      resetPID();
+    }
     else if (cmd == 'P')
     {
       while (Serial.available() < 1)
