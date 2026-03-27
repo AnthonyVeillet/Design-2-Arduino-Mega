@@ -39,6 +39,7 @@ La valeur retenue pour une masse est celle retourné par la fonction nextMasse. 
 Le nombre de bits de l’ADC est fourni par l’utilisateur, et la plage de lecture de tension est de -2 V à 2 V.
 7) Conserver les valeurs en tension mesurées pendant la calibration afin de pouvoir les réutiliser plus tard pour linéariser les mesures de masse.
 Utiliser un dictionnaire, dont la clef est la masse de calibration et la valeur est la tension mesurée.
+** Pour cette fonction il nous faut courantRef
 
 
 Logique de la fonction nextMasse (coder dans le fichier masse.py)
@@ -46,3 +47,4 @@ Logique de la fonction nextMasse (coder dans le fichier masse.py)
 2) Une fois la balance en régime permanent, on attend le délai du temps de moyennage. Après ça, la valeur bool nextMasse devient True et le bouton NEXT devient utilisable.
 3) La valeur mesuré est la moyenne des données envoyer par l'Arduino entre le moment ou l'asservissement stable et le délai de moyennage, au minimum. Sinon, la valeur mesuré est la moyenne jusqu'au moment ou l'utilisateur appuie sur NEXT.
 4) Retourne la valeur mesurée
+** Pour cette fonction il nous faut fin asservissment, temps moyennage
