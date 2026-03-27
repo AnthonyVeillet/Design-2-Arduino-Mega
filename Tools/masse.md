@@ -4,6 +4,7 @@
     - le nombre de masses de calibration à utiliser (minimum 3) ;
     - le temps de moyennage en milisecondes (minimum 1000 ms).
     - Et on affiche que c'est un ADC 10 bits.
+    
 Ces valeurs doivent rester affichées dans l’interface.
 3) Ajouter un bouton Lancer la calibration.
 4) Lorsqu’on lance la calibration, ouvrir une nouvelle fenêtre dédiée.
@@ -33,7 +34,7 @@ Ces valeurs doivent rester affichées dans l’interface.
 4) Si l’utilisateur appuie sur Previous, la mesure précédente est annulée et doit être refaite.
 5) Lorsque l’interface ui indique que la calibration est terminée :
     - convertir les valeurs numériques en tension (car le capteur de courant nous donne une tension lue par l'ADC 10 bits). La plage de lecture de tension est de 0 V à 5 V.
-6) Conserver les valeurs en tension mesurées pendant la calibration afin de pouvoir les réutiliser plus tard pour linéariser les mesures de masse. Utiliser un dictionnaire, dont la clef est la masse de calibration et la valeur est la tension mesurée. Enregistrer ce dictionnaire dans un fichier calibration.
+6) Conserver les valeurs en tension mesurées pendant la calibration afin de pouvoir les réutiliser plus tard pour linéariser les mesures de masse. Utiliser un dictionnaire, dont la clef est la masse de calibration et la valeur est la tension mesurée. Enregistrer ce dictionnaire dans un fichier Echantillionnage/Tools/dataCalibration/calibration.
 
 
 ======== Logique de la fonction nextMasse (coder dans le fichier masse.py) ========
