@@ -1,9 +1,9 @@
-Interface utilisateur de la fonction de calibration (Coder dans le fichier ui.py)
+======== Interface utilisateur de la fonction de calibration (Coder dans le fichier ui.py) ========
 1) Ajouter une section Calibration dans la fenêtre principale, qui regroupe tous les éléments liés à la calibration.
 2) Permettre à l’utilisateur d’entrer (peut être entré manuellement, ou incrementé/décrément avec la mollette de la souris) :
 - le nombre de masses de calibration à utiliser ;
-- le nombre de bits de l’ADC.
 - le temps de moyennage en milisecondes (minimum 1000 ms).
+- Et on affiche que c'est un ADC 10 bits.
 Ces valeurs doivent rester affichées dans l’interface.
 3) Ajouter un bouton Lancer la calibration.
 4) Lorsqu’on lance la calibration, ouvrir une nouvelle fenêtre dédiée.
@@ -24,27 +24,32 @@ En appuyant sur End, on termine la calibration, on ferme la fenêtre, et la fonc
 son numéro ;
 - sa masse réelle ;
 - la valeur de courant mesurée en tension.
+- Afficher cette courbe dans un graph a côté
 
 
-Logique de la fonction de calibration (coder dans le fichier masse.py)
-1) Utiliser la valeur de référence courantRef, obtenue lors du tare de calibration au tout début. Cette valeur représente le zéro.
-2) Démarrer la fonction de calibration lorsque l’utilisateur appuie sur le bouton prévu dans l’interface.
-3) Lorsque la boite à cocher est fait, on appel la fonction nextMasse.
-4) Pour chaque masse de calibration, accumuler la valeur numérique lue par le capteur de courant de l’Arduino.
-La valeur retenue pour une masse est celle retourné par la fonction nextMasse. Le bouton NEXT est actif seulement si bool nextMasse == True.
+======== Logique de la fonction de calibration (coder dans le fichier masse.py) ========
+2) Démarrer la fonction de calibration lorsque l’utilisateur appuie sur le bouton prévu dans l’interface de la fenêtre originale.
+3) Lorsque la boite à cocher (dans la seconde fenetre de calibration) est activée, on appel la fonction nextMasse.
+4) Pour chaque masse de calibration, accumuler la valeur retourné par la fonction nextMasse.
 5) Si l’utilisateur appuie sur Previous, la mesure précédente est annulée et doit être refaite.
-6) Lorsque l’interface indique que la calibration est terminée :
-- soustraire la valeur de référence courantRef à chaque mesure ;
-- convertir les valeurs numériques en tension (car le capteur de courant nous donne une tension lue par l'ADC).
-Le nombre de bits de l’ADC est fourni par l’utilisateur, et la plage de lecture de tension est de -2 V à 2 V.
+6) Lorsque l’interface ui indique que la calibration est terminée :
+- convertir les valeurs numériques en tension (car le capteur de courant nous donne une tension lue par l'ADC 10 bits). La plage de lecture de tension est de 0 V à 5 V.
 7) Conserver les valeurs en tension mesurées pendant la calibration afin de pouvoir les réutiliser plus tard pour linéariser les mesures de masse.
-Utiliser un dictionnaire, dont la clef est la masse de calibration et la valeur est la tension mesurée.
-** Pour cette fonction il nous faut courantRef
+Utiliser un dictionnaire, dont la clef est la masse de calibration et la valeur est la tension mesurée. Enregistrer ce dictionnaire dans un fichier calibration.
 
 
-Logique de la fonction nextMasse (coder dans le fichier masse.py)
-1) Vérifie que l'asservissement de la balance est fait et que la position de la balance est revenue à positionRef en régime permanent. Cette valeur est obtenue par le capteur de position.
-2) Une fois la balance en régime permanent, on attend le délai du temps de moyennage. Après ça, la valeur bool nextMasse devient True et le bouton NEXT devient utilisable.
-3) La valeur mesuré est la moyenne des données envoyer par l'Arduino entre le moment ou l'asservissement stable et le délai de moyennage, au minimum. Sinon, la valeur mesuré est la moyenne jusqu'au moment ou l'utilisateur appuie sur NEXT.
-4) Retourne la valeur mesurée
-** Pour cette fonction il nous faut fin asservissment, temps moyennage
+======== Logique de la fonction nextMasse (coder dans le fichier masse.py) ========
+1) Vérifie que l'asservissement de la balance est fait, soit lorsque la variable bool flag == True.
+2) Une fois la balance en régime permanent, on attend le délai du temps de moyennage. Après ce délai, la valeur bool nextMasse devient True et le bouton NEXT du Ui devient utilisable.
+3) La valeur mesuré curMoyen est obtenue par la moyenne des données envoyer par l'Arduino entre le moment ou flag == True et la fin du délai de moyennage, au minimum.
+Sinon, la valeur mesuré est la moyenne jusqu'au moment ou l'utilisateur appuie sur NEXT. Cette valeur est obtenue par la variable temps réel cur se trouvant dans le fichier ui.py.
+Elle change automatique en temps réel, il faut donc faire la moyenne de toutes ses valeurs.
+4) Retourne la valeur mesurée curMoyen
+
+
+======== Logique de la fonction iterpolation (coder dans le fichier masse.py) ========
+TODO
+
+
+======== Logique de la fonction convert_to_masse (coder dans le fichier masse.py) ========
+TODO
