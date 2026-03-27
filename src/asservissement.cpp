@@ -51,7 +51,7 @@ void tare()
     sei();
 
     initCoeffsPID_Position(0, 1.12, 0);
-    initCoeffsPI_Courant(1, 1);
+    initCoeffsPI_Courant(0.1578014, 40.2026858);
 }
 
 void setPositionReference(uint16_t pref)
@@ -173,6 +173,7 @@ void calculCommandeCourant(uint16_t courant)
     memoireAsservissementCourant.erreur1 = erreur;
 }
 
+volatile bool testCourant = false;
 ISR(TIMER2_COMPA_vect)
 {
     if (modeIdentification)
@@ -191,6 +192,16 @@ ISR(TIMER2_COMPA_vect)
         // 100 Hz
         compteurCascade = 0;
         calculCommandePosition(pos);
+        // if (testCourant)
+        // {
+        //     consigneCourant = 1000;
+        // }
+        // else
+        // {
+        //     consigneCourant = 0;
+        // }
+        // testCourant = !testCourant;
+        // consigneCourant = positionRef;
     }
     // 1000 Hz
     calculCommandeCourant(courant);

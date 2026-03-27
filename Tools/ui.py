@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
@@ -7,9 +9,11 @@ import struct
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
+import csv
+from pathlib import Path
 
 BAUDRATE = 115200
-WINDOW_TIME = 10  # secondes affichées (oscilloscope)
+WINDOW_TIME = 10
 
 
 class App:
@@ -18,14 +22,12 @@ class App:
         self.root.title("Balance Asservie")
         self.root.geometry("520x520")
 
-        style = ttk.Style()
-        style.theme_use("clam")
-
         self.ser = None
         self.rx_buffer = bytearray()
 
         self.running = False
         self.plot_running = False
+        self.ident_running = False
 
         self.last_courant = 0
         self.last_flag = 0
@@ -34,6 +36,9 @@ class App:
         self.data = []
 
         self.fig = None
+
+        self.data_dir = Path("dataIdentification")
+        self.data_dir.mkdir(exist_ok=True)
 
         self.create_widgets()
 
@@ -129,6 +134,7 @@ class App:
         ttk.Button(action, text="Start", command=self.start).grid(row=0, column=0, padx=5)
         ttk.Button(action, text="Stop", command=self.stop).grid(row=0, column=1, padx=5)
         ttk.Button(action, text="Tare", command=self.tare).grid(row=0, column=2, padx=5)
+        ttk.Button(action, text="Identification complète", command=self.run_identification).grid(row=0, column=3, padx=5)
 
     # ================= SERIAL =================
     def connect(self):
@@ -144,32 +150,27 @@ class App:
             time.sleep(0.001)
 
     def parse(self):
-        while len(self.rx_buffer) >= 1:
-            cmd = self.rx_buffer[0]
-
-            if cmd == ord('T'):
-                if len(self.rx_buffer) < 10:
-                    return
-
-                pos, cur, cmd_pos, cmd_cur = struct.unpack('<HHHH', self.rx_buffer[1:9])
-                flag = self.rx_buffer[9]
-
-                del self.rx_buffer[:10]
-
-                self.last_courant = cur
-                self.last_flag = flag
-
-                self.masse.set(f"{cur - self.offset}")
-
-                # LED basée sur le flag Arduino
-                if flag:
-                    self.canvas.itemconfig(self.led, fill="green")
-                else:
-                    self.canvas.itemconfig(self.led, fill="red")
-
-                self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
-            else:
+        while len(self.rx_buffer) >= 10:
+            if self.rx_buffer[0] != ord('T'):
                 del self.rx_buffer[0]
+                continue
+
+            pos, cur, cmd_pos, cmd_cur = struct.unpack('<HHHH', self.rx_buffer[1:9])
+            flag = self.rx_buffer[9]
+
+            del self.rx_buffer[:10]
+
+            self.last_courant = cur
+            self.last_flag = flag
+
+            self.masse.set(f"{cur - self.offset}")
+
+            if flag:
+                self.canvas.itemconfig(self.led, fill="green")
+            else:
+                self.canvas.itemconfig(self.led, fill="red")
+
+            self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
 
     # ================= COMMANDES =================
     def send(self, b):
@@ -195,13 +196,8 @@ class App:
 
     # ================= START / STOP =================
     def start(self):
-        if self.running:
-            return
-
         self.running = True
         self.data.clear()
-
-        self.start_plot()
 
         pwm = int(self.pwm_entry.get())
 
@@ -212,6 +208,7 @@ class App:
             self.send(b'N')
 
         self.send(b'S')
+        self.start_plot()
 
     def stop(self):
         self.running = False
@@ -219,21 +216,117 @@ class App:
         self.send(b'E')
         self.send(b'P' + bytes([50]))
 
-    # ================= GRAPH OSCILLO =================
+    # ================= IDENTIFICATION =================
+    def run_identification(self):
+        if not self.ser:
+            messagebox.showerror("Erreur", "Pas connecté")
+            return
+
+        if self.ident_running:
+            return
+
+        self.ident_running = True
+        threading.Thread(target=self.ident_thread, daemon=True).start()
+
+    def ident_thread(self):
+        try:
+            pwm = int(self.pwm_entry.get())
+            mode = self.signal_type.get()
+
+            REF_TIME = 5
+            STEP_TIME = 15 if mode == "step" else 0.05
+            POST_TIME = 15
+
+            self.data.clear()
+
+            self.send(b'I')
+            self.send(b'P' + bytes([50]))
+            time.sleep(0.1)
+
+            self.send(b'S')
+
+            time.sleep(REF_TIME)
+            ref_data = list(self.data)
+
+            pos_ref = sum(d[1] for d in ref_data) / len(ref_data)
+            cur_ref = sum(d[2] for d in ref_data) / len(ref_data)
+
+            self.send(b'P' + bytes([pwm]))
+
+            t0 = time.time()
+            zero_sent = False
+
+            while True:
+                elapsed = time.time() - t0
+
+                if (not zero_sent) and elapsed >= STEP_TIME:
+                    self.send(b'P' + bytes([50]))
+                    zero_sent = True
+
+                if elapsed >= STEP_TIME + POST_TIME:
+                    break
+
+                time.sleep(0.001)
+
+            self.send(b'E')
+
+            all_data = list(self.data)
+
+            filename = self.data_dir / f"{mode}_{pwm}.csv"
+
+            with open(filename, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["time", "pos", "cur", "cmd_pos", "cmd_cur", "pos_reel", "cur_reel"])
+
+                t0 = all_data[0][0]
+
+                for d in all_data:
+                    t = d[0] - t0
+                    writer.writerow([
+                        t, d[1], d[2], d[3], d[4],
+                        d[1] - pos_ref,
+                        d[2] - cur_ref
+                    ])
+
+            print("CSV sauvegardé:", filename)
+
+            t = [d[0] - all_data[0][0] for d in all_data]
+            pos = [d[1] - pos_ref for d in all_data]
+            cur = [d[2] - cur_ref for d in all_data]
+
+            plt.figure()
+            plt.subplot(2,1,1)
+            plt.plot(t, pos)
+            plt.title("Position réelle")
+
+            plt.subplot(2,1,2)
+            plt.plot(t, cur)
+            plt.title("Courant réel")
+
+            png = self.data_dir / f"{mode}_{pwm}.png"
+            plt.savefig(png)
+            print("PNG sauvegardé:", png)
+
+            plt.show()
+
+        except Exception as e:
+            print("Erreur identification:", e)
+
+        finally:
+            self.ident_running = False
+
+    # ================= OSCILLO =================
     def start_plot(self):
         if self.fig:
             plt.close(self.fig)
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1)
 
-        self.line_cur, = self.ax1.plot([], [], label="Courant")
-        self.line_pos, = self.ax1.plot([], [], label="Position")
+        self.line_cur, = self.ax1.plot([], [])
+        self.line_pos, = self.ax1.plot([], [])
 
-        self.line_cmd_pos, = self.ax2.plot([], [], label="Cmd Position")
-        self.line_cmd_cur, = self.ax2.plot([], [], label="Cmd Courant")
-
-        self.ax1.legend()
-        self.ax2.legend()
+        self.line_cmd_pos, = self.ax2.plot([], [])
+        self.line_cmd_cur, = self.ax2.plot([], [])
 
         self.plot_running = True
         self.update_plot()
@@ -246,8 +339,6 @@ class App:
 
         if len(self.data) > 2:
             now = time.time()
-
-            # fenêtre glissante
             self.data = [d for d in self.data if now - d[0] <= WINDOW_TIME]
 
             t0 = self.data[0][0]
@@ -273,12 +364,10 @@ class App:
 
             self.fig.canvas.draw_idle()
 
-        self.root.after(50, self.update_plot)  # 20 Hz
+        self.root.after(50, self.update_plot)
 
-    # ================= CLEAN EXIT =================
+    # ================= EXIT =================
     def on_close(self):
-        self.running = False
-        self.plot_running = False
         if self.ser:
             try:
                 self.send(b'E')
