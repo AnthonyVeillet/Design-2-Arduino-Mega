@@ -1,11 +1,9 @@
 ======== Interface utilisateur de la fonction de calibration (Coder dans le fichier ui.py) ========
 1) Ajouter une section Calibration dans la fenêtre principale, qui regroupe tous les éléments liés à la calibration.
-2) Permettre à l’utilisateur d’entrer (peut être entré manuellement, ou incrementé/décrément avec la mollette de la souris) :
+2) Permettre à l’utilisateur d’entrer (peut être entré manuellement, ou incrementé/décrément avec la mollette de la souris). Ces valeurs doivent rester affichées dans l’interface :
     - le nombre de masses de calibration à utiliser (minimum 3) ;
     - le temps de moyennage en milisecondes (minimum 1000 ms).
     - Et on affiche que c'est un ADC 10 bits.
-    
-Ces valeurs doivent rester affichées dans l’interface.
 3) Ajouter un bouton Lancer la calibration.
 4) Lorsqu’on lance la calibration, ouvrir une nouvelle fenêtre dédiée.
 5) Dans cette fenêtre, afficher :
@@ -17,7 +15,7 @@ Ces valeurs doivent rester affichées dans l’interface.
     - Stop : arrêter la calibration.
     - Boite à cocher : Nouvelle masse déposée sur le plateau.
 7) La boite envoie le signal à la fonction de calibration pour lui dire qu'elle peut commencer son traitement
-8) Lorsqu’on appuie sur Next (si le bool nextMasse == True), la valeur mesurée pour la masse courante est enregistrée, puis on passe à la masse suivante et on met bool nextMasse == False.
+8) Lorsqu’on appuie sur Next (si le bool nextMasse (nouvelle variable bool à créer, utilisé par masse.py et ui.py) == True), la valeur mesurée pour la masse courante est enregistrée, puis on passe à la masse suivante et on met bool nextMasse == False.
 9) Lorsqu’on appuie sur Previous, la mesure de la masse précédente doit être refaite. Ce bouton peut être appuyé n'importe quand, toutefois il dois mettre bool nextMasse == False.
 10) Lorsqu’on arrive à la dernière masse de calibration, le bouton Next devient End. En appuyant sur End, on termine la calibration, on ferme la fenêtre, et la fonction de calibration retourne les valeurs de courant mesurées pour chaque masse.
 11) De retour dans la fenêtre principale, la section Calibration doit afficher, pour chaque masse :
@@ -38,9 +36,9 @@ Ces valeurs doivent rester affichées dans l’interface.
 
 
 ======== Logique de la fonction nextMasse (coder dans le fichier masse.py) ========
-1) Vérifie que l'asservissement de la balance est fait, soit lorsque la variable bool flag == True.
+1) Vérifie que l'asservissement de la balance est fait, soit lorsque la variable bool flag == True (variable déjà fait du fichier ui.py).
 2) Une fois la balance en régime permanent, on attend le délai du temps de moyennage. Après ce délai, la valeur bool nextMasse devient True et le bouton NEXT du Ui devient utilisable.
-3) La valeur mesuré curMoyen est obtenue par la moyenne des données envoyer par l'Arduino entre le moment ou flag == True et la fin du délai de moyennage, au minimum. Sinon, la valeur mesuré est la moyenne jusqu'au moment ou l'utilisateur appuie sur NEXT. Cette valeur est obtenue par la variable temps réel cur se trouvant dans le fichier ui.py. Elle change automatique en temps réel, il faut donc faire la moyenne de toutes ses valeurs.
+3) La valeur mesuré curMoyen (nouvelle variable créé de la fonction nextMasse) est obtenue par la moyenne des données envoyer par l'Arduino entre le moment ou flag == True et la fin du délai de moyennage, au minimum. Sinon, la valeur mesuré est la moyenne jusqu'au moment ou l'utilisateur appuie sur NEXT. Cette valeur est obtenue par la variable temps réel cur (variable déjà fait dans le fichier ui.py). Elle change automatique en temps réel, il faut donc faire la moyenne de toutes ses valeurs.
 4) Retourne la valeur mesurée curMoyen
 
 
