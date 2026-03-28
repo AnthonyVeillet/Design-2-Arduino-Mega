@@ -47,11 +47,11 @@ void tare()
     cli();
     // Accès section critique
     // positionRef = positionFiltre;
-    positionRef = 430;
+    positionRef = 330;
     sei();
 
-    initCoeffsPID_Position(0, 1.12, 0);
-    initCoeffsPI_Courant(0.1578014, 40.2026858);
+    initCoeffsPID_Position(0.07, 15, 0.012);
+    initCoeffsPI_Courant(0.4, 165);
 }
 
 void setPositionReference(uint16_t pref)
@@ -61,7 +61,7 @@ void setPositionReference(uint16_t pref)
 
 void initCoeffsPID_Position(float Kp, float Ki, float Kd)
 {
-    float Te = 0.01; // 100 Hz = fréquence asservissement position
+    float Te = 0.02; // 50 Hz = fréquence asservissement position
 
     coeffPosition.b0 = Kp + (Ki * Te) / 2 + (2 * Kd) / Te;
     coeffPosition.b1 = (Ki * Te) - (4 * Kd) / Te;
@@ -70,8 +70,8 @@ void initCoeffsPID_Position(float Kp, float Ki, float Kd)
 
 void resetPID()
 {
-    initCoeffsPID_Position(0, 1.12, 0);
-    initCoeffsPI_Courant(0.1578014, 40.2026858);
+    initCoeffsPID_Position(0.07, 15, 0.012);
+    initCoeffsPI_Courant(0.4, 165);
     memoireAsservissementPos = {0};
     memoireAsservissementCourant = {0};
 }
@@ -114,12 +114,13 @@ void calculCommandePosition(uint16_t position)
     memoireConsigne.consigne1 = consigneCourant;
     memoireConsigne.consigne2 = memoireConsigne.consigne1;
     memoireConsigne.consigne3 = memoireConsigne.consigne2;
-    if (memoireConsigne.consigne3 - memoireConsigne.consigne1 <= 2)
+    if (memoireConsigne.consigne3 - memoireConsigne.consigne1 <= 2 && erreur <= 0.002)
     {
         mesureValide = true;
     }
     else
         mesureValide = false;
+    
 
     if (!commandeSaturee)
     {
@@ -189,9 +190,9 @@ ISR(TIMER2_COMPA_vect)
 
     // Calcul PID
     compteurCascade++;
-    if (compteurCascade >= 10)
+    if (compteurCascade >= 20)
     {
-        // 100 Hz
+        // 50 Hz
         compteurCascade = 0;
         calculCommandePosition(pos);
         // if (testCourant)
