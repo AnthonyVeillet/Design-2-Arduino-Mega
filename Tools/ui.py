@@ -199,17 +199,41 @@ class App:
 
         ttk.Button(pid_frame, text="Appliquer", command=self.send_pid_cur).grid(row=1, column=4)
 
+        # ===== DÉBUT MODIFICATION — affichage Masse temps réel + Masse stable =====
         measure_frame = ttk.LabelFrame(main, text="Mesure", padding=10)
         measure_frame.pack(fill="x", pady=5)
 
-        ttk.Label(measure_frame, text="Masse:").pack(side="left")
-
-        self.masse = tk.StringVar(value="---")
-        ttk.Label(measure_frame, textvariable=self.masse, font=("Arial", 14, "bold")).pack(side="left", padx=10)
-
+        # LED de stabilité (à droite)
         self.canvas = tk.Canvas(measure_frame, width=20, height=20)
-        self.canvas.pack(side="left", padx=10)
+        self.canvas.pack(side="right", padx=10)
         self.led = self.canvas.create_oval(2, 2, 18, 18, fill="red")
+
+        # Colonne gauche : Masse temps réel
+        rt_frame = ttk.Frame(measure_frame)
+        rt_frame.pack(side="left", padx=15)
+
+        ttk.Label(rt_frame, text="Masse temps réel :").pack(anchor="w")
+        self.masse_rt = tk.StringVar(value="--- g  /  --- kg")
+        ttk.Label(rt_frame, textvariable=self.masse_rt,
+                  font=("Arial", 12)).pack(anchor="w")
+
+        # Colonne droite : Masse (stable, après moyennage)
+        st_frame = ttk.Frame(measure_frame)
+        st_frame.pack(side="left", padx=15)
+
+        ttk.Label(st_frame, text="Masse :").pack(anchor="w")
+        self.masse_stable = tk.StringVar(value="--- g  /  --- kg")
+        ttk.Label(st_frame, textvariable=self.masse_stable,
+                  font=("Arial", 14, "bold")).pack(anchor="w")
+
+        # Variables pour la conversion
+        self.cal_dict = masse.load_calibration()
+        self.cal_model = "affine"    # Modèle par défaut
+        self.tare_masse = 0.0        # Tare en grammes (pour la masse affichée)
+
+        # Lancer le polling d'affichage
+        self.root.after(100, self._update_masse_display)
+        # ===== FIN MODIFICATION — affichage Masse temps réel + Masse stable =====
 
         action = ttk.Frame(main)
         action.pack(pady=10)
@@ -263,6 +287,20 @@ class App:
         row3.pack(fill="x", pady=2)
         ttk.Label(row3, text=f"ADC : {masse.ADC_BITS} bits (0 – 5 V)").pack(side="left")
 
+        # ===== DÉBUT AJOUT — sélection du modèle de calibration =====
+        row_model = ttk.Frame(cal_frame)
+        row_model.pack(fill="x", pady=2)
+        ttk.Label(row_model, text="Modèle de calibration :").pack(side="left")
+        self.cal_model_var = tk.StringVar(value="affine")
+        model_combo = ttk.Combobox(
+            row_model, textvariable=self.cal_model_var,
+            values=["affine", "quadratic", "piecewise"],
+            state="readonly", width=12,
+        )
+        model_combo.pack(side="left", padx=5)
+        model_combo.bind("<<ComboboxSelected>>", self._on_model_changed)
+        # ===== FIN AJOUT — sélection du modèle de calibration =====
+
         # Bouton Lancer
         ttk.Button(
             cal_frame, text="Lancer la calibration",
@@ -298,6 +336,17 @@ class App:
             self.cal_avg_time.set(current + 500)
         elif event.delta < 0 and current > 1000:
             self.cal_avg_time.set(current - 500)
+
+    # ===== DÉBUT AJOUT — changement de modèle de calibration =====
+    def _on_model_changed(self, event=None):
+        """Appelée quand l'utilisateur change le modèle de calibration."""
+        self.cal_model = self.cal_model_var.get()
+        # Recalculer la tare avec le nouveau modèle
+        if self.cal_dict and len(self.cal_dict) >= 2 and self.offset != 0:
+            self.tare_masse = masse.convert_masse(
+                self.offset, self.cal_dict, self.cal_model
+            )
+    # ===== FIN AJOUT — changement de modèle de calibration =====
 
     def _launch_calibration(self):
         """Ouvre la fenêtre de calibration et démarre le processus."""
@@ -432,7 +481,7 @@ class App:
             # Case cochée → signaler à masse.py de commencer la collecte
             self.cal_checkbox.config(state="disabled")
             self.cal_status.set("Stabilisation et moyennage en cours...")
-            masse.start_next_masse()
+            masse.start_next_masse(calibration_mode=True)
             # Lancer un polling pour activer le bouton Next quand prêt
             self._cal_poll_next_ready()
 
@@ -512,6 +561,11 @@ class App:
         cal_path = masse.save_calibration()
         print(f"Calibration sauvegardée : {cal_path}")
 
+        # ===== DÉBUT AJOUT — recharger le dictionnaire de calibration =====
+        self.cal_dict = masse.load_calibration()
+        self.tare_masse = 0.0  # Reset tare après nouvelle calibration
+        # ===== FIN AJOUT — recharger le dictionnaire de calibration =====
+
         if self.cal_window is not None:
             self.cal_window.destroy()
             self.cal_window = None
@@ -569,6 +623,50 @@ class App:
         canvas.get_tk_widget().pack(fill="both", expand=True)
 
     # ===== FIN AJOUT — méthodes de la section Calibration =====
+
+    # ===== DÉBUT AJOUT — mise à jour continue de l'affichage masse =====
+
+    def _format_masse(self, masse_g):
+        """Formate une masse en g et kg avec précision 0.1 g."""
+        masse_kg = masse_g / 1000.0
+        return f"{masse_g:.1f} g  /  {masse_kg:.4f} kg"
+
+    def _update_masse_display(self):
+        """
+        Polling continu (~100ms) pour mettre à jour les deux affichages :
+        - Masse temps réel : valeur instantanée (même si balance instable)
+        - Masse : valeur après stabilisation et moyennage
+        Les deux sont affichées en grammes et kilogrammes.
+        Si une calibration est disponible, les valeurs ADC sont converties
+        en masse via le modèle de calibration. Sinon, affichage brut ADC.
+        """
+        # --- Masse temps réel ---
+        cur = self.last_courant
+        if self.cal_dict and len(self.cal_dict) >= 2:
+            masse_rt_g = masse.convert_masse(cur, self.cal_dict, self.cal_model)
+            masse_rt_g -= self.tare_masse
+            self.masse_rt.set(self._format_masse(masse_rt_g))
+        else:
+            raw = cur - self.offset
+            self.masse_rt.set(f"{raw} ADC")
+
+        # --- Masse (stable, après moyennage) ---
+        if self.avg_value is not None:
+            if self.cal_dict and len(self.cal_dict) >= 2:
+                masse_st_g = masse.convert_masse(
+                    self.avg_value, self.cal_dict, self.cal_model
+                )
+                masse_st_g -= self.tare_masse
+                self.masse_stable.set(self._format_masse(masse_st_g))
+            else:
+                raw = int(self.avg_value - self.offset)
+                self.masse_stable.set(f"{raw} ADC")
+        else:
+            self.masse_stable.set("--- g  /  --- kg")
+
+        self.root.after(100, self._update_masse_display)
+
+    # ===== FIN AJOUT — mise à jour continue de l'affichage masse =====
 
     # ===== DÉBUT AJOUT — méthodes de défilement (scroll) =====
 
@@ -659,6 +757,13 @@ class App:
             self.sim_thread = threading.Thread(target=self._sim_reader, daemon=True)
             self.sim_thread.start()
             print("Simulation activée")
+            # ===== DÉBUT AJOUT — init mesure pour usage hors calibration =====
+            masse.init_measurement(
+                avg_time_ms=self.cal_avg_time.get(),
+                get_courant_fn=lambda: self.last_courant,
+                get_flag_fn=lambda: bool(self.last_flag),
+            )
+            # ===== FIN AJOUT =====
             return
         # ===== FIN AJOUT — connexion en mode simulation =====
 
@@ -666,6 +771,13 @@ class App:
         self.ser = serial.Serial(self.port.get(), BAUDRATE, timeout=0)
         time.sleep(2)
         threading.Thread(target=self.reader, daemon=True).start()
+        # ===== DÉBUT AJOUT — init mesure pour usage hors calibration =====
+        masse.init_measurement(
+            avg_time_ms=self.cal_avg_time.get(),
+            get_courant_fn=lambda: self.last_courant,
+            get_flag_fn=lambda: bool(self.last_flag),
+        )
+        # ===== FIN AJOUT =====
 
     def reader(self):
         while True:
@@ -705,7 +817,6 @@ class App:
 
                 if now - self.avg_start_time >= 1.0:
                     self.avg_value = sum(self.avg_buffer) / len(self.avg_buffer)
-                    self.masse.set(f"{int(self.avg_value - self.offset)}")
                     self.canvas.itemconfig(self.led, fill="green")
                 else:
                     self.canvas.itemconfig(self.led, fill="orange")
@@ -720,11 +831,9 @@ class App:
                     self.stable = False
                     self.avg_buffer = []
                     self.avg_value = None
-
-                    self.masse.set(f"{cur - self.offset}")
                     self.canvas.itemconfig(self.led, fill="red")
                 else:
-                    # transition courte → on garde orange (ou rien)
+                    # transition courte → on garde orange
                     self.canvas.itemconfig(self.led, fill="orange")
 
             self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
@@ -789,11 +898,12 @@ class App:
 
     def _sim_update_ui(self, pos, cur, cmd_pos, cmd_cur, flag):
         """Met à jour l'interface depuis le thread principal (thread-safe)."""
-        self.masse.set(f"{cur - self.offset}")
+        # ===== DÉBUT MODIFICATION — affichage géré par _update_masse_display =====
         if flag:
             self.canvas.itemconfig(self.led, fill="green")
         else:
             self.canvas.itemconfig(self.led, fill="red")
+        # ===== FIN MODIFICATION =====
 
     # ===== FIN AJOUT — simulation Arduino =====
 
@@ -849,8 +959,17 @@ class App:
                                      float(self.kp_c.get()),
                                      float(self.ki_c.get())))
 
+    # ===== DÉBUT MODIFICATION — tare basée sur la masse =====
     def tare(self):
         self.offset = self.last_courant
+        # Si calibration disponible, stocker la masse actuelle comme tare
+        if self.cal_dict and len(self.cal_dict) >= 2:
+            self.tare_masse = masse.convert_masse(
+                self.last_courant, self.cal_dict, self.cal_model
+            )
+        else:
+            self.tare_masse = 0.0
+    # ===== FIN MODIFICATION — tare basée sur la masse =====
 
     # ================= START / STOP =================
     def start(self):
