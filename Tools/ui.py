@@ -575,7 +575,7 @@ class App:
     def _display_calibration_results(self):
         """
         Affiche les résultats dans la section Calibration de la fenêtre principale :
-        tableau (numéro, masse, tension) + graphique (tension vs masse).
+        tableau (numéro, masse, tension) + graphique calibration + graphique résidus.
         """
         results = masse.get_valid_results()
         if not results:
@@ -605,13 +605,13 @@ class App:
                 row=i + 1, column=2, padx=4, pady=1,
             )
 
-        # Graphique matplotlib embarqué dans tkinter
         tensions = [r["tension_v"] for r in results]
-        masses = [r["masse_g"] for r in results]
+        masses_g = [r["masse_g"] for r in results]
 
+        # --- Graphique 1 : Courbe de calibration ---
         fig = Figure(figsize=(3.5, 2.5), dpi=100)
         ax = fig.add_subplot(111)
-        ax.plot(tensions, masses, "o-", markersize=6)
+        ax.plot(tensions, masses_g, "o-", markersize=6)
         ax.set_xlabel("Tension (V)")
         ax.set_ylabel("Masse (g)")
         ax.set_title("Courbe de calibration")
@@ -621,6 +621,100 @@ class App:
         canvas = FigureCanvasTkAgg(fig, master=self.cal_graph_frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill="both", expand=True)
+
+        # ===== DÉBUT AJOUT — graphique des résidus =====
+
+        # Frame pour le graphique des résidus + checkboxes
+        residual_frame = ttk.LabelFrame(
+            self.cal_graph_frame, text="Analyse des résidus", padding=5,
+        )
+        residual_frame.pack(fill="both", expand=True, pady=5)
+
+        # Checkboxes pour afficher/cacher chaque modèle
+        cb_frame = ttk.Frame(residual_frame)
+        cb_frame.pack(fill="x")
+
+        self._res_show_affine = tk.BooleanVar(value=True)
+        self._res_show_quadratic = tk.BooleanVar(value=True)
+        self._res_show_piecewise = tk.BooleanVar(value=True)
+
+        ttk.Checkbutton(
+            cb_frame, text="Affine", variable=self._res_show_affine,
+            command=self._redraw_residuals,
+        ).pack(side="left", padx=5)
+        ttk.Checkbutton(
+            cb_frame, text="Quadratique", variable=self._res_show_quadratic,
+            command=self._redraw_residuals,
+        ).pack(side="left", padx=5)
+        ttk.Checkbutton(
+            cb_frame, text="Par morceaux", variable=self._res_show_piecewise,
+            command=self._redraw_residuals,
+        ).pack(side="left", padx=5)
+
+        # Frame pour le canvas du graphique résidus
+        self._res_canvas_frame = ttk.Frame(residual_frame)
+        self._res_canvas_frame.pack(fill="both", expand=True)
+
+        # Stocker les données pour le redraw
+        self._res_tensions = tensions
+        self._res_masses = masses_g
+
+        self._redraw_residuals()
+
+        # ===== FIN AJOUT — graphique des résidus =====
+
+    # ===== DÉBUT AJOUT — dessin du graphique des résidus =====
+
+    def _redraw_residuals(self):
+        """Redessine le graphique des résidus selon les checkboxes cochées."""
+        # Vider le canvas précédent
+        for w in self._res_canvas_frame.winfo_children():
+            w.destroy()
+
+        tensions = self._res_tensions
+        masses_g = self._res_masses
+        cal_dict = self.cal_dict
+
+        if not cal_dict or len(cal_dict) < 2:
+            return
+
+        fig = Figure(figsize=(3.5, 2.5), dpi=100)
+        ax = fig.add_subplot(111)
+
+        models = [
+            ("affine",    self._res_show_affine,    "o-",  "Affine"),
+            ("quadratic", self._res_show_quadratic, "s--", "Quadratique"),
+            ("piecewise", self._res_show_piecewise, "^:",  "Par morceaux"),
+        ]
+
+        for model_name, var, style, label in models:
+            if not var.get():
+                continue
+
+            residuals = []
+            for v, m in zip(tensions, masses_g):
+                # Reconvertir la tension en ADC pour passer par convert_masse
+                adc_val = v / masse.V_REF * masse.ADC_MAX
+                m_hat = masse.convert_masse(adc_val, cal_dict, model_name)
+                residuals.append(m - m_hat)
+
+            ax.plot(tensions, residuals, style, label=label, markersize=5)
+
+        # Ligne de référence à 0
+        ax.axhline(y=0, color="gray", linewidth=0.8, linestyle="-")
+
+        ax.set_xlabel("Tension (V)")
+        ax.set_ylabel("Résidu (g)")
+        ax.set_title("Résidus : m_réel − m_estimé")
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+        fig.tight_layout()
+
+        canvas = FigureCanvasTkAgg(fig, master=self._res_canvas_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+
+    # ===== FIN AJOUT — dessin du graphique des résidus =====
 
     # ===== FIN AJOUT — méthodes de la section Calibration =====
 
