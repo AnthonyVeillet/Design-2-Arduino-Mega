@@ -25,6 +25,7 @@ import math
 
 BAUDRATE = 115200
 WINDOW_TIME = 10
+masseRT_affichage = 1000 # Fréquence d'affichage de la masse temps réel (en ms)
 
 
 class App:
@@ -200,7 +201,7 @@ class App:
         ttk.Button(pid_frame, text="Appliquer", command=self.send_pid_cur).grid(row=1, column=4)
 
         # ===== DÉBUT MODIFICATION — affichage Masse temps réel + Masse stable =====
-        measure_frame = ttk.LabelFrame(main, text="Mesure (Affichage à 1 Hz)", padding=10)
+        measure_frame = ttk.LabelFrame(main, text=f"Mesure (Affichage à chaque {masseRT_affichage} ms)", padding=10)
         measure_frame.pack(fill="x", pady=5)
 
         # LED de stabilité (à droite)
@@ -778,7 +779,7 @@ class App:
         else:
             self.masse_stable.set("--- g  /  --- kg")
 
-        self.root.after(1000, self._update_masse_display)
+        self.root.after(masseRT_affichage, self._update_masse_display)
 
     # ===== FIN AJOUT — mise à jour continue de l'affichage masse =====
 
