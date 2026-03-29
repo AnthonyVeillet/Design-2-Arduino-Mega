@@ -200,7 +200,7 @@ class App:
         ttk.Button(pid_frame, text="Appliquer", command=self.send_pid_cur).grid(row=1, column=4)
 
         # ===== DÉBUT MODIFICATION — affichage Masse temps réel + Masse stable =====
-        measure_frame = ttk.LabelFrame(main, text="Mesure", padding=10)
+        measure_frame = ttk.LabelFrame(main, text="Mesure (Affichage à 1 Hz)", padding=10)
         measure_frame.pack(fill="x", pady=5)
 
         # LED de stabilité (à droite)
@@ -214,8 +214,13 @@ class App:
 
         ttk.Label(rt_frame, text="Masse temps réel :").pack(anchor="w")
         self.masse_rt = tk.StringVar(value="--- g  /  --- kg")
-        ttk.Label(rt_frame, textvariable=self.masse_rt,
-                  font=("Arial", 12)).pack(anchor="w")
+        ttk.Label(
+            rt_frame,
+            textvariable=self.masse_rt,
+            font=("Arial", 12),
+            width=20,
+            anchor="w"
+        ).pack(anchor="w")
 
         # Colonne droite : Masse (stable, après moyennage)
         st_frame = ttk.Frame(measure_frame)
@@ -223,8 +228,13 @@ class App:
 
         ttk.Label(st_frame, text="Masse :").pack(anchor="w")
         self.masse_stable = tk.StringVar(value="--- g  /  --- kg")
-        ttk.Label(st_frame, textvariable=self.masse_stable,
-                  font=("Arial", 14, "bold")).pack(anchor="w")
+        ttk.Label(
+            st_frame,
+            textvariable=self.masse_stable,
+            font=("Arial", 14, "bold"),
+            width=20,
+            anchor="w"
+        ).pack(anchor="w")
 
         # Variables pour la conversion
         self.cal_dict = masse.load_calibration()
@@ -758,7 +768,7 @@ class App:
         else:
             self.masse_stable.set("--- g  /  --- kg")
 
-        self.root.after(100, self._update_masse_display)
+        self.root.after(1000, self._update_masse_display)
 
     # ===== FIN AJOUT — mise à jour continue de l'affichage masse =====
 
