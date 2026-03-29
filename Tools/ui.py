@@ -301,11 +301,20 @@ class App:
         row_model = ttk.Frame(cal_frame)
         row_model.pack(fill="x", pady=2)
         ttk.Label(row_model, text="Modèle de calibration :").pack(side="left")
-        self.cal_model_var = tk.StringVar(value="affine")
+        self.cal_model_labels = {
+            "Affine": "affine",
+            "Quadratique": "quadratic",
+            "Par morceaux": "piecewise",
+        }
+
+        self.cal_model_var = tk.StringVar(value="Affine")
+
         model_combo = ttk.Combobox(
-            row_model, textvariable=self.cal_model_var,
-            values=["affine", "quadratic", "piecewise"],
-            state="readonly", width=12,
+            row_model,
+            textvariable=self.cal_model_var,
+            values=list(self.cal_model_labels.keys()),
+            state="readonly",
+            width=12,
         )
         model_combo.pack(side="left", padx=5)
         model_combo.bind("<<ComboboxSelected>>", self._on_model_changed)
@@ -350,7 +359,8 @@ class App:
     # ===== DÉBUT AJOUT — changement de modèle de calibration =====
     def _on_model_changed(self, event=None):
         """Appelée quand l'utilisateur change le modèle de calibration."""
-        self.cal_model = self.cal_model_var.get()
+        selected_label = self.cal_model_var.get()
+        self.cal_model = self.cal_model_labels[selected_label]
         # Recalculer la tare avec le nouveau modèle
         if self.cal_dict and len(self.cal_dict) >= 2 and self.offset != 0:
             self.tare_masse = masse.convert_masse(
