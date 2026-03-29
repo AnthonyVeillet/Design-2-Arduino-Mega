@@ -11,6 +11,7 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import csv
 from pathlib import Path
+import winsound
 
 # ===== DÉBUT AJOUT — imports calibration =====
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -205,9 +206,9 @@ class App:
         measure_frame.pack(fill="x", pady=5)
 
         # LED de stabilité (à droite)
-        self.canvas = tk.Canvas(measure_frame, width=20, height=20)
-        self.canvas.pack(side="right", padx=10)
-        self.led = self.canvas.create_oval(2, 2, 18, 18, fill="red")
+        self.canvas = tk.Canvas(measure_frame, width=30, height=30)
+        self.canvas.pack(side="left", padx=10)
+        self.led = self.canvas.create_oval(3, 3, 25, 25, fill="red")
 
         # Colonne gauche : Masse temps réel
         rt_frame = ttk.Frame(measure_frame)
