@@ -3,6 +3,8 @@
 #include "Arduino.h"
 #include "PWM.h"
 
+#define COMPTEUR_MESURE_VALIDE 20
+
 volatile uint8_t compteurCascade = 0;
 volatile bool modeIdentification = false;
 
@@ -77,6 +79,7 @@ void resetPID()
 }
 
 uint16_t printCounter = 0;
+int8_t compteurMesureValide = 0;
 
 void calculCommandePosition(uint16_t position)
 {
@@ -116,11 +119,21 @@ void calculCommandePosition(uint16_t position)
     memoireConsigne.consigne3 = memoireConsigne.consigne2;
     if (memoireConsigne.consigne3 - memoireConsigne.consigne1 <= 2 && erreur <= 0.002)
     {
-        mesureValide = true;
+        compteurMesureValide++;
+        if (compteurMesureValide > COMPTEUR_MESURE_VALIDE)
+        {
+            compteurMesureValide = COMPTEUR_MESURE_VALIDE;
+        }
     }
     else
-        mesureValide = false;
-    
+    {
+        compteurMesureValide--;
+        if (compteurMesureValide < 0)
+        {
+            compteurMesureValide = 0;
+        }
+    }
+    mesureValide = (compteurMesureValide == COMPTEUR_MESURE_VALIDE);
 
     if (!commandeSaturee)
     {

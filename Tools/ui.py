@@ -76,6 +76,14 @@ class App:
         self.sim_flag_counter = 0   # Compteur pour simuler la stabilisation
         # ===== FIN AJOUT — variables simulation =====
 
+        # ===== STABILITÉ =====
+        self.avg_buffer = []
+        self.avg_start_time = None
+        self.avg_value = None
+        self.stable = False
+        self.flag0_start_time = None
+        self.red_delay = 0.1  # 100 ms
+
         self.create_widgets()
 
     # ================= UI =================
@@ -680,12 +688,44 @@ class App:
             self.last_courant = cur
             self.last_flag = flag
 
-            self.masse.set(f"{cur - self.offset}")
+            # ===== GESTION STABILITÉ =====
+            now = time.time()
 
             if flag:
-                self.canvas.itemconfig(self.led, fill="green")
+                # reset timer rouge
+                self.flag0_start_time = None
+
+                # ta logique existante (stable / moyenne)
+                if not self.stable:
+                    self.avg_buffer = []
+                    self.avg_start_time = now
+                    self.stable = True
+
+                self.avg_buffer.append(cur)
+
+                if now - self.avg_start_time >= 1.0:
+                    self.avg_value = sum(self.avg_buffer) / len(self.avg_buffer)
+                    self.masse.set(f"{int(self.avg_value - self.offset)}")
+                    self.canvas.itemconfig(self.led, fill="green")
+                else:
+                    self.canvas.itemconfig(self.led, fill="orange")
+
             else:
-                self.canvas.itemconfig(self.led, fill="red")
+                # démarre timer si première détection
+                if self.flag0_start_time is None:
+                    self.flag0_start_time = now
+
+                # seulement rouge si > 100 ms
+                if now - self.flag0_start_time >= self.red_delay:
+                    self.stable = False
+                    self.avg_buffer = []
+                    self.avg_value = None
+
+                    self.masse.set(f"{cur - self.offset}")
+                    self.canvas.itemconfig(self.led, fill="red")
+                else:
+                    # transition courte → on garde orange (ou rien)
+                    self.canvas.itemconfig(self.led, fill="orange")
 
             self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
 
