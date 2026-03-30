@@ -75,7 +75,7 @@ class App:
         self.sim_thread = None
         self.sim_running = False
         self.sim_pwm = 50           # PWM courante (50 = 0A = repos)
-        self.sim_position = 430.0   # Position simulée (autour de positionRef)
+        self.sim_position = 300.0   # Position simulée (autour de positionRef)
         self.sim_courant = 512.0    # Courant simulé (512 = milieu ADC = 0A)
         self.sim_flag_counter = 0   # Compteur pour simuler la stabilisation
         # ===== FIN AJOUT — variables simulation =====
@@ -86,7 +86,7 @@ class App:
         self.stable = False
         self.stable_since = None
 
-        self.stab_buffer = deque(maxlen=30)
+        self.stab_buffer = deque(maxlen=150)
         self.span_threshold = 6.0
         self.std_threshold = 1.5
         self.min_stable_time = 0.5
@@ -169,7 +169,7 @@ class App:
         ref_frame.pack(fill="x", pady=5)
 
         self.pos_ref = ttk.Entry(ref_frame, width=10)
-        self.pos_ref.insert(0, "430")
+        self.pos_ref.insert(0, "300")
         self.pos_ref.pack(side="left", padx=5)
 
         ttk.Button(ref_frame, text="Envoyer", command=self.send_ref).pack(side="left")
@@ -179,13 +179,13 @@ class App:
 
         ttk.Label(pid_frame, text="Position (Kp Ki Kd)").grid(row=0, column=0)
 
-        self.kp = ttk.Entry(pid_frame, width=5)
-        self.ki = ttk.Entry(pid_frame, width=5)
-        self.kd = ttk.Entry(pid_frame, width=5)
+        self.kp = ttk.Entry(pid_frame, width=10)
+        self.ki = ttk.Entry(pid_frame, width=10)
+        self.kd = ttk.Entry(pid_frame, width=10)
 
-        self.kp.insert(0, "1")
-        self.ki.insert(0, "0")
-        self.kd.insert(0, "0")
+        self.kp.insert(0, "0.12")
+        self.ki.insert(0, "12")
+        self.kd.insert(0, "0.012")
 
         self.kp.grid(row=0, column=1)
         self.ki.grid(row=0, column=2)
@@ -195,11 +195,11 @@ class App:
 
         ttk.Label(pid_frame, text="Courant (Kp Ki)").grid(row=1, column=0)
 
-        self.kp_c = ttk.Entry(pid_frame, width=5)
-        self.ki_c = ttk.Entry(pid_frame, width=5)
+        self.kp_c = ttk.Entry(pid_frame, width=10)
+        self.ki_c = ttk.Entry(pid_frame, width=10)
 
-        self.kp_c.insert(0, "1")
-        self.ki_c.insert(0, "0")
+        self.kp_c.insert(0, "0.4")
+        self.ki_c.insert(0, "165")
 
         self.kp_c.grid(row=1, column=1)
         self.ki_c.grid(row=1, column=2)
@@ -977,7 +977,7 @@ class App:
         que l'Arduino (une trame 'T' toutes les ~20 ms ≈ 50 Hz).
 
         Comportement simulé :
-        - Position oscille autour de 430 (positionRef) avec du bruit.
+        - Position oscille autour de 300 (positionRef) avec du bruit.
         - Quand on change le PWM, le courant réagit proportionnellement.
         - flag (mesureValide) passe à True après quelques cycles de stabilisation.
         """
@@ -986,11 +986,11 @@ class App:
         while self.sim_running:
             dt = time.monotonic() - t0
 
-            # -- Position simulée : oscille autour de 430 + bruit --
+            # -- Position simulée : oscille autour de 300 + bruit --
             noise_pos = random.gauss(0, 2)
             # Le PWM déplace un peu la position (simule une force)
             pwm_effect = (self.sim_pwm - 50) * 0.3
-            self.sim_position += (430.0 + pwm_effect - self.sim_position) * 0.1
+            self.sim_position += (300.0 + pwm_effect - self.sim_position) * 0.1
             pos = int(max(0, min(1023, self.sim_position + noise_pos)))
 
             # -- Courant simulé : proportionnel au PWM + bruit --
@@ -1085,7 +1085,7 @@ class App:
 
     # ===== DÉBUT MODIFICATION — tare basée sur la masse =====
     def tare(self):
-        self.offset = self.last_courant
+        self.offset = self.avg_value
         # Si calibration disponible, stocker la masse actuelle comme tare
         if self.cal_dict and len(self.cal_dict) >= 2:
             self.tare_masse = masse.convert_masse(
