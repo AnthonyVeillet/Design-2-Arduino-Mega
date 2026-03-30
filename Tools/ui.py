@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import csv
 from pathlib import Path
 import winsound
+from collections import deque
+import statistics
 
 # ===== DÉBUT AJOUT — imports calibration =====
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -79,12 +81,15 @@ class App:
         # ===== FIN AJOUT — variables simulation =====
 
         # ===== STABILITÉ =====
-        self.avg_buffer = []
-        self.avg_start_time = None
+
         self.avg_value = None
         self.stable = False
-        self.flag0_start_time = None
-        self.red_delay = 0.1  # 100 ms
+        self.stable_since = None
+
+        self.stab_buffer = deque(maxlen=30)
+        self.span_threshold = 6.0
+        self.std_threshold = 1.5
+        self.min_stable_time = 0.5
 
         self.create_widgets()
 
@@ -395,10 +400,10 @@ class App:
 
         # Créer la calibration (masse.py)
         masse.init_calibration(
-            n_masses=num,
-            avg_time_ms=avg,
-            get_courant_fn=lambda: self.last_courant,
-            get_flag_fn=lambda: bool(self.last_flag),
+        n_masses=num,
+        avg_time_ms=avg,
+        get_courant_fn=lambda: self.last_courant,
+        get_flag_fn=lambda: self.stable,
         )
 
         self._open_calibration_window()
@@ -875,9 +880,9 @@ class App:
             print("Simulation activée")
             # ===== DÉBUT AJOUT — init mesure pour usage hors calibration =====
             masse.init_measurement(
-                avg_time_ms=self.cal_avg_time.get(),
-                get_courant_fn=lambda: self.last_courant,
-                get_flag_fn=lambda: bool(self.last_flag),
+            avg_time_ms=self.cal_avg_time.get(),
+            get_courant_fn=lambda: self.last_courant,
+            get_flag_fn=lambda: self.stable,
             )
             # ===== FIN AJOUT =====
             return
@@ -889,9 +894,9 @@ class App:
         threading.Thread(target=self.reader, daemon=True).start()
         # ===== DÉBUT AJOUT — init mesure pour usage hors calibration =====
         masse.init_measurement(
-            avg_time_ms=self.cal_avg_time.get(),
-            get_courant_fn=lambda: self.last_courant,
-            get_flag_fn=lambda: bool(self.last_flag),
+        avg_time_ms=self.cal_avg_time.get(),
+        get_courant_fn=lambda: self.last_courant,
+        get_flag_fn=lambda: self.stable,
         )
         # ===== FIN AJOUT =====
 
@@ -916,41 +921,44 @@ class App:
             self.last_courant = cur
             self.last_flag = flag
 
-            # ===== GESTION STABILITÉ =====
+            # ===== GESTION STABILITÉ PAR PYTHON =====
             now = time.time()
 
-            if flag:
-                # reset timer rouge
-                self.flag0_start_time = None
+            # Ajouter la mesure courante à la fenêtre
+            self.stab_buffer.append(cur)
 
-                # ta logique existante (stable / moyenne)
-                if not self.stable:
-                    self.avg_buffer = []
-                    self.avg_start_time = now
-                    self.stable = True
-
-                self.avg_buffer.append(cur)
-
-                if now - self.avg_start_time >= 1.0:
-                    self.avg_value = sum(self.avg_buffer) / len(self.avg_buffer)
-                    self.canvas.itemconfig(self.led, fill="green")
-                else:
-                    self.canvas.itemconfig(self.led, fill="orange")
-
+            # Pas assez d'échantillons au début
+            if len(self.stab_buffer) < self.stab_buffer.maxlen:
+                self.stable = False
+                self.stable_since = None
+                self.canvas.itemconfig(self.led, fill="orange")
             else:
-                # démarre timer si première détection
-                if self.flag0_start_time is None:
-                    self.flag0_start_time = now
+                values = list(self.stab_buffer)
+                avg = sum(values) / len(values)
+                span = max(values) - min(values)
 
-                # seulement rouge si > 100 ms
-                if now - self.flag0_start_time >= self.red_delay:
-                    self.stable = False
-                    self.avg_buffer = []
-                    self.avg_value = None
-                    self.canvas.itemconfig(self.led, fill="red")
+                # Critère plus robuste
+                # import statistics en haut du fichier si tu utilises cette ligne
+                # std = statistics.pstdev(values)
+                # stable_now = (span <= self.span_threshold and std <= self.std_threshold)
+
+                stable_now = (span <= self.span_threshold)
+
+                if stable_now:
+                    if self.stable_since is None:
+                        self.stable_since = now
+
+                    if now - self.stable_since >= self.min_stable_time:
+                        self.stable = True
+                        self.avg_value = avg
+                        self.canvas.itemconfig(self.led, fill="green")
+                    else:
+                        self.stable = False
+                        self.canvas.itemconfig(self.led, fill="orange")
                 else:
-                    # transition courte → on garde orange
-                    self.canvas.itemconfig(self.led, fill="orange")
+                    self.stable = False
+                    self.stable_since = None
+                    self.canvas.itemconfig(self.led, fill="red")
 
             self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
 

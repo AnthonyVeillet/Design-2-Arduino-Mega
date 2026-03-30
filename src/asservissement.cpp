@@ -101,7 +101,7 @@ void calculCommandePosition(uint16_t position)
 
     // Calcul commande PID
     commande = u2 + coeffPosition.b0 * erreur + coeffPosition.b1 * e1 + coeffPosition.b2 * e2;
-    if (commande > 1.0 || commande < 0.0)
+    if (commande > 1.0 || commande < -1.0)
         commandeSaturee = true;
     else
         commandeSaturee = false;
