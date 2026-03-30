@@ -58,6 +58,7 @@ class App:
         self.last_courant = 0
         self.last_flag = 0
         self.offset = 0
+        self.init_tare_flag = True # Pour faire un tare automatique
 
         self.data = []
 
@@ -985,6 +986,9 @@ class App:
                         if self.masse_lock_flag == True:
                             self.masse_lock_flag = False
                             self.avg_value_lock = avg
+                        if self.init_tare_flag == True:
+                            self.init_tare_flag = False
+                            self.offset = avg
                         self.canvas.itemconfig(self.led, fill="green")
                     else:
                         self.stable = False
