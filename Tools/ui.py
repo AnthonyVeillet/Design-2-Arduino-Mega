@@ -82,7 +82,9 @@ class App:
 
         # ===== STABILITÉ =====
 
+        self.masse_lock_flag = True # Pour indiquer que la masse lock peut être mise à jour (après asservissement et moyennage)
         self.avg_value = None
+        self.avg_value_lock = None
         self.stable = False
         self.stable_since = None
 
@@ -229,15 +231,29 @@ class App:
             anchor="w"
         ).pack(anchor="w")
 
-        # Colonne droite : Masse (stable, après moyennage)
+        # Colonne Milieu : Masse (stable, après moyennage)
         st_frame = ttk.Frame(measure_frame)
         st_frame.pack(side="left", padx=15)
 
-        ttk.Label(st_frame, text="Masse :").pack(anchor="w")
+        ttk.Label(st_frame, text="Masse moyennée :").pack(anchor="w")
         self.masse_stable = tk.StringVar(value="--- g  /  --- kg")
         ttk.Label(
             st_frame,
             textvariable=self.masse_stable,
+            font=("Arial", 14, "bold"),
+            width=20,
+            anchor="w"
+        ).pack(anchor="w")
+
+        # Colonne droite : Masse lock après moyennage (stable, après moyennage)
+        lt_frame = ttk.Frame(measure_frame)
+        lt_frame.pack(side="left", padx=15)
+
+        ttk.Label(lt_frame, text="Masse :").pack(anchor="w")
+        self.masse_stable_lock = tk.StringVar(value="--- g  /  --- kg")
+        ttk.Label(
+            lt_frame,
+            textvariable=self.masse_stable_lock,
             font=("Arial", 14, "bold"),
             width=20,
             anchor="w"
@@ -785,6 +801,21 @@ class App:
         else:
             self.masse_stable.set("--- g  /  --- kg")
 
+        # --- Masse lock (stable, après moyennage) ---
+        if self.avg_value_lock is not None:
+            if self.cal_dict and len(self.cal_dict) >= 2:
+                masse_lt_g = masse.convert_masse(
+                    self.avg_value_lock, self.cal_dict, self.cal_model
+                )
+                masse_lt_g -= self.tare_masse
+                self.masse_stable_lock.set(self._format_masse(masse_lt_g))
+            else:
+                raw = int(self.avg_value_lock - self.offset)
+                self.masse_stable_lock.set(f"{raw} ADC")
+            self.avg_value_lock = None  # Affiché une fois, réinitialisé pour la prochaine mesure
+        else:
+            self.masse_stable_lock.set("--- g  /  --- kg")
+
         self.root.after(masseRT_affichage, self._update_masse_display)
 
     # ===== FIN AJOUT — mise à jour continue de l'affichage masse =====
@@ -951,11 +982,15 @@ class App:
                     if now - self.stable_since >= self.min_stable_time:
                         self.stable = True
                         self.avg_value = avg
+                        if self.masse_lock_flag == True:
+                            self.masse_lock_flag = False
+                            self.avg_value_lock = avg
                         self.canvas.itemconfig(self.led, fill="green")
                     else:
                         self.stable = False
                         self.canvas.itemconfig(self.led, fill="orange")
                 else:
+                    self.masse_lock_flag = True
                     self.stable = False
                     self.stable_since = None
                     self.canvas.itemconfig(self.led, fill="red")
