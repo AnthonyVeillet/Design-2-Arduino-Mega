@@ -59,6 +59,7 @@ class App:
         self.last_flag = 0
         self.offset = 0
         self.init_tare_flag = True # Pour faire un tare automatique
+        self.bouton_tare_flag = False # Permet au bouton Tare d'être actif seulement apres asservissement et moyennage
 
         self.data = []
 
@@ -272,11 +273,19 @@ class App:
         action = ttk.Frame(main)
         action.pack(pady=10)
 
+        # Boutons Tare
+        tare_frame = ttk.Frame(main)
+        tare_frame.pack(pady=10)
+
         ttk.Button(action, text="Start", command=self.start).grid(row=0, column=0, padx=5)
         ttk.Button(action, text="Stop", command=self.stop).grid(row=0, column=1, padx=5)
-        ttk.Button(action, text="Tare", command=self.tare).grid(row=0, column=2, padx=5)
+        tare_btn = ttk.Button(action, text="Tare", command=self.tare, state="disabled")
+        tare_btn.grid(row=0, column=2, padx=5)
         ttk.Button(action, text="Reset PID", command=self.reset_pid).grid(row=0, column=3, padx=5)
         ttk.Button(action, text="Identification complète", command=self.run_identification).grid(row=0, column=4, padx=5)
+
+        if self.bouton_tare_flag == True: # Activer le bouton Tare seulement après asservissement et moyennage
+            tare_btn.config(state="normal")
         
         # ===== DÉBUT AJOUT — section Calibration dans la fenêtre principale =====
         self._create_calibration_section(main)
@@ -982,6 +991,7 @@ class App:
 
                     if now - self.stable_since >= self.min_stable_time:
                         self.stable = True
+                        self.bouton_tare_flag = True
                         self.avg_value = avg
                         if self.masse_lock_flag == True:
                             self.masse_lock_flag = False
@@ -994,6 +1004,7 @@ class App:
                         self.stable = False
                         self.canvas.itemconfig(self.led, fill="orange")
                 else:
+                    self.bouton_tare_flag = False
                     self.masse_lock_flag = True
                     self.stable = False
                     self.stable_since = None
