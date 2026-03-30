@@ -49,11 +49,10 @@ void tare()
     cli();
     // Accès section critique
     // positionRef = positionFiltre;
-    positionRef = 330;
+    positionRef = 300;
     sei();
 
-    initCoeffsPID_Position(0.07, 15, 0.012);
-    initCoeffsPI_Courant(0.4, 165);
+    resetPID();
 }
 
 void setPositionReference(uint16_t pref)
@@ -72,7 +71,7 @@ void initCoeffsPID_Position(float Kp, float Ki, float Kd)
 
 void resetPID()
 {
-    initCoeffsPID_Position(0.07, 15, 0.012);
+    initCoeffsPID_Position(0.012, 12, 0.012);
     initCoeffsPI_Courant(0.4, 165);
     memoireAsservissementPos = {0};
     memoireAsservissementCourant = {0};
