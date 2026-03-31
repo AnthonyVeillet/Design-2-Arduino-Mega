@@ -1202,6 +1202,7 @@ class App:
                 stable_now = (span <= self.span_threshold) and (std_dev <= self.std_threshold) and pos_ok
 
                 if stable_now:
+                    print("Lame stabilisée")
                     if self.stable_since is None:
                         self.stable_since = now
                         self.resetMoyennageCourant()
@@ -1236,6 +1237,7 @@ class App:
                 else:
                     # On repasse en ROUGE si le courant bouge trop OU si on quitte la zone de position
                     if span > (self.span_threshold * 1.5) or not pos_ok:
+                        print("Lame non-stabilisée")
                         self.resetMoyennageCourant()
                         self.stable = False
                         self.stable_since = None
@@ -1571,7 +1573,9 @@ class App:
         if self.fig:
             plt.close(self.fig)
 
-        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1)
+        #MODIF 1 self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1)
+        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(14, 9), constrained_layout=True)
+        self.fig.suptitle("Équipe 1", fontsize=20)
 
         # Temps de départ du graphique
         self.plot_t0 = time.time()
@@ -1612,7 +1616,7 @@ class App:
         self.plot_running = True
         self.update_plot()
 
-        plt.tight_layout()
+        # MODIF 1 plt.tight_layout(rect=[0, 0, 1, 0.96])
         plt.show(block=False)
 
     def update_plot(self):
