@@ -30,7 +30,7 @@ import math
 
 BAUDRATE = 115200
 WINDOW_TIME = 10
-masseRT_affichage = 1000 # Fréquence d'affichage de la masse temps réel (en ms)
+masseRT_affichage = 100 # Fréquence d'affichage de la masse temps réel (en ms)
 
 # ========== Code pour afficher les prints dans l'app DEBUT
 class TextRedirector:
@@ -109,7 +109,12 @@ class App:
         self.stab_buffer = deque(maxlen=150)
         self.span_threshold = 6.0
         self.std_threshold = 1.5
-        self.min_stable_time = 0.5
+        self.min_stable_time = 1
+
+        # self.courantStable_buffer = deque(maxlen=200)
+        self.courantStable_somme = 0
+        self.courantStable_nbElem = 0
+        self.avgCourantStable_value = None
 
         # ========== Code pour afficher les prints dans l'app DEBUT
         self._stdout = sys.stdout
@@ -941,15 +946,15 @@ class App:
             self.masse_rt.set(f"{raw} ADC")
 
         # --- Masse (stable, après moyennage) ---
-        if self.avg_value is not None:
+        if self.avgCourantStable_value is not None:
             if self.cal_dict and len(self.cal_dict) >= 2:
                 masse_st_g = masse.convert_masse(
-                    self.avg_value, self.cal_dict, self.cal_model
+                    self.avgCourantStable_value, self.cal_dict, self.cal_model
                 )
                 masse_st_g -= self.tare_masse
                 self.masse_stable.set(self._format_masse(masse_st_g))
             else:
-                raw = int(self.avg_value - self.offset)
+                raw = int(self.avgCourantStable_value - self.offset)
                 self.masse_stable.set(f"{raw} ADC")
         else:
             self.masse_stable.set("--- g  /  --- kg")
@@ -1112,8 +1117,8 @@ class App:
             self.last_flag = flag
 
             # ===== LISSAGE PRÉALABLE (EMA) =====
-            # alpha entre 0.1 (très lent) et 0.5 (réactif). Ajuste selon tes tests.
-            alpha = 0.2 
+            # alpha entre 0.1 (très lent) et 0.5 (réactif).
+            alpha = 0.3 
             if not hasattr(self, 'lissage_cur'): self.lissage_cur = cur
             self.lissage_cur = (alpha * cur) + (1 - alpha) * self.lissage_cur
 
@@ -1138,6 +1143,9 @@ class App:
                 if stable_now:
                     if self.stable_since is None:
                         self.stable_since = now
+                        self.resetMoyennageCourant()
+
+                    self.moyennageCourantStable(cur)
 
                     if (now - self.stable_since) >= self.min_stable_time:
                         if not self.stable:
@@ -1147,7 +1155,7 @@ class App:
                             self.avg_value = avg
                             print(f"Stabilisé à {self.avg_value:.1f} ADC (span={span:.1f}, std={std_dev:.2f})")
                             if self.masse_lock_flag:
-                                self.avg_value_lock = avg
+                                self.avg_value_lock = self.avgCourantStable_value
                                 self.masse_lock_flag = False
                                 print(f"Masse lock définie à {self.avg_value_lock:.1f} ADC")
                             if self.init_tare_flag:
@@ -1162,6 +1170,7 @@ class App:
                     # On ne repasse en ROUGE que si l'instabilité dure un tout petit peu
                     # ou si le dépassement est flagrant (ex: 2x le seuil)
                     if span > (self.span_threshold * 1.5):
+                        self.resetMoyennageCourant()
                         self.stable = False
                         self.tare_btn.config(state="disabled") # Désactiver le bouton Tare
                         self.btn_update_tps_moy.config(state="normal") # Désctiver le tps moy
@@ -1171,6 +1180,33 @@ class App:
                         self.masse_stable_lock.set("--- g  /  --- kg")
 
             self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
+    
+    def moyennageCourantStable(self, courant):
+        # values = list(self.courantStable_buffer)
+        
+        # if not values:
+        #     self.courantStable_buffer.append(courant)
+        #     self.avgCourantStable_value = courant
+        #     return
+
+        # span = max(values) - min(values)
+        # if len(values) == self.courantStable_buffer.maxlen:
+        #     if (courant - min(values) > 2*span) or (courant - max(values) > 2*span):
+        #         return
+
+        # self.courantStable_buffer.append(courant)
+        # new_values = list(self.courantStable_buffer)
+        # self.avgCourantStable_value = sum(new_values) / len(new_values)
+        self.courantStable_nbElem += 1
+        self.courantStable_somme += courant
+        self.avgCourantStable_value = self.courantStable_somme / self.courantStable_nbElem
+    
+    def resetMoyennageCourant(self):
+        """Réinitialise le buffer de calcul pour repartir à zéro après un mouvement."""
+        # self.courantStable_buffer.clear()
+        self.avgCourantStable_value = None
+        self.courantStable_nbElem  = 0
+        self.courantStable_somme = 0
 
     # ===== DÉBUT AJOUT — simulation Arduino =====
 
