@@ -279,13 +279,10 @@ class App:
 
         ttk.Button(action, text="Start", command=self.start).grid(row=0, column=0, padx=5)
         ttk.Button(action, text="Stop", command=self.stop).grid(row=0, column=1, padx=5)
-        tare_btn = ttk.Button(action, text="Tare", command=self.tare, state="disabled")
-        tare_btn.grid(row=0, column=2, padx=5)
+        self.tare_btn = ttk.Button(action, text="Tare", command=self.tare, state="disabled")
+        self.tare_btn.grid(row=0, column=2, padx=5)
         ttk.Button(action, text="Reset PID", command=self.reset_pid).grid(row=0, column=3, padx=5)
         ttk.Button(action, text="Identification complète", command=self.run_identification).grid(row=0, column=4, padx=5)
-
-        if self.bouton_tare_flag == True: # Activer le bouton Tare seulement après asservissement et moyennage
-            tare_btn.config(state="normal")
         
         # ===== DÉBUT AJOUT — section Calibration dans la fenêtre principale =====
         self._create_calibration_section(main)
@@ -993,10 +990,17 @@ class App:
                     if (now - self.stable_since) >= self.min_stable_time:
                         if not self.stable:
                             self.stable = True
+                            self.tare_btn.config(state="normal") # Activer le bouton Tare
                             self.avg_value = avg
+                            print(f"Stabilisé à {self.avg_value:.1f} ADC (span={span:.1f}, std={std_dev:.2f})\n")
                             if self.masse_lock_flag:
                                 self.avg_value_lock = avg
                                 self.masse_lock_flag = False
+                                print(f"Masse lock définie à {self.avg_value_lock:.1f} ADC\n")
+                            if self.init_tare_flag:
+                                self.offset = avg
+                                self.init_tare_flag = False
+                                print(f"Offset initial défini à {self.offset:.1f} ADC\n")
                             self.canvas.itemconfig(self.led, fill="green")
                     else:
                         self.stable = False
@@ -1006,6 +1010,7 @@ class App:
                     # ou si le dépassement est flagrant (ex: 2x le seuil)
                     if span > (self.span_threshold * 1.5):
                         self.stable = False
+                        self.tare_btn.config(state="disabled") # Désactiver le bouton Tare
                         self.stable_since = None
                         self.masse_lock_flag = True
                         self.canvas.itemconfig(self.led, fill="red")
