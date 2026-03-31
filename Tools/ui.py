@@ -110,6 +110,7 @@ class App:
         self.span_threshold = 6.0
         self.std_threshold = 1.5
         self.min_stable_time = 1
+        self.pos_error_threshold = 3.0
 
         # self.courantStable_buffer = deque(maxlen=200)
         self.courantStable_somme = 0
@@ -1117,14 +1118,27 @@ class App:
             self.last_flag = flag
 
             # ===== LISSAGE PRÉALABLE (EMA) =====
-            # alpha entre 0.1 (très lent) et 0.5 (réactif).
             alpha = 0.3 
             if not hasattr(self, 'lissage_cur'): self.lissage_cur = cur
+            if not hasattr(self, 'lissage_pos'): self.lissage_pos = pos
+            
             self.lissage_cur = (alpha * cur) + (1 - alpha) * self.lissage_cur
+            self.lissage_pos = (alpha * pos) + (1 - alpha) * self.lissage_pos
 
-            # ===== GESTION STABILITÉ SUR VALEUR LISSÉE =====
+            # ===== GESTION STABILITÉ =====
             now = time.time()
-            self.stab_buffer.append(self.lissage_cur) # On travaille sur la valeur filtrée
+            self.stab_buffer.append(self.lissage_cur) 
+
+            # Vérification de l'erreur de position par rapport à la référence
+            # On utilise la valeur lissée pour éviter les micro-sauts
+
+            try:
+                current_pos_ref = float(self.pos_ref.get())
+            except ValueError:
+                current_pos_ref = 0.0 # Sécurité si le champ est vide
+
+            erreur_pos = abs(self.lissage_pos - current_pos_ref)
+            pos_ok = erreur_pos <= self.pos_error_threshold
 
             if len(self.stab_buffer) < self.stab_buffer.maxlen:
                 self.stable = False
@@ -1132,49 +1146,48 @@ class App:
                 self.canvas.itemconfig(self.led, fill="orange")
             else:
                 values = list(self.stab_buffer)
-                avg = sum(values) / len(values)
-                
                 span = max(values) - min(values)
                 std_dev = statistics.stdev(values) if len(values) > 1 else 0
 
-                # On peut aussi augmenter un peu les seuils pour tolérer un léger bruit résiduel
-                stable_now = (span <= self.span_threshold) and (std_dev <= self.std_threshold)
+                # La stabilité exige : Courant calme ET Position atteinte
+                stable_now = (span <= self.span_threshold) and (std_dev <= self.std_threshold) and pos_ok
 
                 if stable_now:
                     if self.stable_since is None:
                         self.stable_since = now
                         self.resetMoyennageCourant()
 
+                    # On moyenne la valeur brute (cur) pour la précision finale
                     self.moyennageCourantStable(cur)
 
                     if (now - self.stable_since) >= self.min_stable_time:
                         if not self.stable:
                             self.stable = True
-                            self.tare_btn.config(state="normal") # Activer le bouton Tare
-                            self.btn_update_tps_moy.config(state="normal") # Activer le tps moy
-                            self.avg_value = avg
-                            print(f"Stabilisé à {self.avg_value:.1f} ADC (span={span:.1f}, std={std_dev:.2f})")
+                            self.tare_btn.config(state="normal")
+                            self.btn_update_tps_moy.config(state="normal")
+                            self.avg_value = self.avgCourantStable_value
+                            
+                            print(f"Stabilisé à {self.avg_value:.1f} ADC (ErrPos={erreur_pos:.1f})")
+                            
                             if self.masse_lock_flag:
                                 self.avg_value_lock = self.avgCourantStable_value
                                 self.masse_lock_flag = False
-                                print(f"Masse lock définie à {self.avg_value_lock:.1f} ADC")
+                            
                             if self.init_tare_flag:
                                 self.tare()
                                 self.init_tare_flag = False
-                                print(f"Offset initial défini à {self.offset:.1f} ADC")
+                                
                             self.canvas.itemconfig(self.led, fill="green")
                     else:
                         self.stable = False
                         self.canvas.itemconfig(self.led, fill="orange")
                 else:
-                    # On ne repasse en ROUGE que si l'instabilité dure un tout petit peu
-                    # ou si le dépassement est flagrant (ex: 2x le seuil)
-                    if span > (self.span_threshold * 1.5):
+                    # On repasse en ROUGE si le courant bouge trop OU si on quitte la zone de position
+                    if span > (self.span_threshold * 1.5) or not pos_ok:
                         self.resetMoyennageCourant()
                         self.stable = False
-                        self.tare_btn.config(state="disabled") # Désactiver le bouton Tare
-                        self.btn_update_tps_moy.config(state="normal") # Désctiver le tps moy
                         self.stable_since = None
+                        self.tare_btn.config(state="disabled")
                         self.masse_lock_flag = True
                         self.canvas.itemconfig(self.led, fill="red")
                         self.masse_stable_lock.set("--- g  /  --- kg")
