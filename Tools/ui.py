@@ -14,6 +14,8 @@ from pathlib import Path
 import winsound
 from collections import deque
 import statistics
+import sys
+from tkinter.scrolledtext import ScrolledText
 
 # ===== DÉBUT AJOUT — imports calibration =====
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -30,7 +32,21 @@ BAUDRATE = 115200
 WINDOW_TIME = 10
 masseRT_affichage = 1000 # Fréquence d'affichage de la masse temps réel (en ms)
 
+# ========== Code pour afficher les prints dans l'app DEBUT
+class TextRedirector:
+    def __init__(self, app, tag=None):
+        self.app = app
+        self.tag = tag
 
+    def write(self, text):
+        if not text:
+            return
+        # Toujours repasser par le thread principal Tkinter
+        self.app.root.after(0, self.app._append_console, text, self.tag)
+
+    def flush(self):
+        pass
+# ========== Code pour afficher les prints dans l'app FIN
 class App:
     def __init__(self, root):
         self.root = root
@@ -95,18 +111,53 @@ class App:
         self.std_threshold = 1.5
         self.min_stable_time = 0.5
 
+        # ========== Code pour afficher les prints dans l'app DEBUT
+        self._stdout = sys.stdout
+        # ========== Code pour afficher les prints dans l'app FIN
+
         self.create_widgets()
+
+        # ========== Code pour afficher les prints dans l'app DEBUT
+        sys.stdout = TextRedirector(self)
+        self._append_console("Console intégrée prête.\n")
+        # ========== Code pour afficher les prints dans l'app FIN
 
     # ================= UI =================
     def create_widgets(self):
         # ===== DÉBUT AJOUT — conteneur scrollable =====
-        self.scroll_canvas = tk.Canvas(self.root, highlightthickness=0)
-        self.v_scrollbar = ttk.Scrollbar(self.root, orient="vertical",
-                                         command=self.scroll_canvas.yview)
-        self.h_scrollbar = ttk.Scrollbar(self.root, orient="horizontal",
-                                         command=self.scroll_canvas.xview)
-        self.scroll_canvas.configure(yscrollcommand=self.v_scrollbar.set,
-                                     xscrollcommand=self.h_scrollbar.set)
+        # ========== Code pour afficher les prints dans l'app DEBUT
+        root_container = ttk.Frame(self.root)
+        root_container.pack(fill="both", expand=True)
+
+        root_container.columnconfigure(0, weight=4)
+        root_container.columnconfigure(1, weight=1)
+        root_container.rowconfigure(0, weight=1)
+
+        self.left_panel = ttk.Frame(root_container)
+        self.left_panel.grid(row=0, column=0, sticky="nsew")
+
+        self.right_panel = ttk.Frame(root_container, padding=(8, 0, 0, 0))
+        self.right_panel.grid(row=0, column=1, sticky="nsew")
+
+        # ===== conteneur scrollable à gauche =====
+        self.scroll_container = ttk.Frame(self.left_panel)
+        self.scroll_container.pack(fill="both", expand=True)
+
+        self.scroll_canvas = tk.Canvas(self.scroll_container, highlightthickness=0)
+        self.v_scrollbar = ttk.Scrollbar(
+            self.scroll_container,
+            orient="vertical",
+            command=self.scroll_canvas.yview
+        )
+        self.h_scrollbar = ttk.Scrollbar(
+            self.scroll_container,
+            orient="horizontal",
+            command=self.scroll_canvas.xview
+        )
+        self.scroll_canvas.configure(
+            yscrollcommand=self.v_scrollbar.set,
+            xscrollcommand=self.h_scrollbar.set
+        )
 
         self.h_scrollbar.pack(side="bottom", fill="x")
         self.v_scrollbar.pack(side="right", fill="y")
@@ -123,13 +174,14 @@ class App:
         # Molette souris : vertical et horizontal
         self.scroll_canvas.bind_all("<MouseWheel>", self._on_mousewheel_y)
         self.scroll_canvas.bind_all("<Shift-MouseWheel>", self._on_mousewheel_x)
-        # Linux
         self.scroll_canvas.bind_all("<Button-4>", self._on_mousewheel_y)
         self.scroll_canvas.bind_all("<Button-5>", self._on_mousewheel_y)
         self.scroll_canvas.bind_all("<Shift-Button-4>", self._on_mousewheel_x)
         self.scroll_canvas.bind_all("<Shift-Button-5>", self._on_mousewheel_x)
-        # ===== FIN AJOUT — conteneur scrollable =====
 
+        # Console à droite
+        self._create_console_panel(self.right_panel)
+        # ========== Code pour afficher les prints dans l'app FIN
         main = ttk.Frame(self.scroll_frame, padding=15)
         main.pack(fill="both", expand=True)
 
@@ -284,8 +336,53 @@ class App:
         self._create_calibration_section(main)
         # ===== FIN AJOUT — section Calibration dans la fenêtre principale =====
 
-    # ===== DÉBUT AJOUT — méthodes de la section Calibration (UI principale) =====
+    # ========== Code pour afficher les prints dans l'app DEBUT
+    def _create_console_panel(self, parent):
+        console_frame = ttk.LabelFrame(parent, text="Console", padding=8)
+        console_frame.pack(fill="both", expand=True)
 
+        top = ttk.Frame(console_frame)
+        top.pack(fill="x", pady=(0, 5))
+
+        self.console_autoscroll = tk.BooleanVar(value=True)
+
+        ttk.Button(top, text="Clear", command=self._clear_console).pack(side="left")
+        ttk.Checkbutton(
+            top,
+            text="Auto-scroll",
+            variable=self.console_autoscroll
+        ).pack(side="right")
+
+        self.console = ScrolledText(
+            console_frame,
+            wrap="word",
+            state="disabled",
+            font=("Consolas", 9),
+            height=25
+        )
+        self.console.pack(fill="both", expand=True)
+
+
+    def _append_console(self, text, tag=None):
+        if not hasattr(self, "console"):
+            return
+
+        self.console.configure(state="normal")
+        self.console.insert("end", text, tag)
+        if self.console_autoscroll.get():
+            self.console.see("end")
+        self.console.configure(state="disabled")
+
+    def _clear_console(self):
+        if not hasattr(self, "console"):
+            return
+
+        self.console.configure(state="normal")
+        self.console.delete("1.0", "end")
+        self.console.configure(state="disabled")
+    # ========== Code pour afficher les prints dans l'app FIN
+
+    # ===== DÉBUT AJOUT — méthodes de la section Calibration (UI principale) =====
     def _create_calibration_section(self, parent):
         """Crée la section Calibration dans la fenêtre principale."""
         cal_frame = ttk.LabelFrame(parent, text="Calibration", padding=10)
@@ -416,13 +513,14 @@ class App:
             )
 
     def update_tps_moy(self):
-        self.min_stable_time = self.cal_avg_spin / 1000
+        self.min_stable_time = self.cal_avg_time.get() / 1000
         print(f"Nouveau temps de moyennage set à {self.min_stable_time} secondes")
 
     # ===== FIN AJOUT — changement de modèle de calibration =====
 
     def _launch_calibration(self):
         """Ouvre la fenêtre de calibration et démarre le processus."""
+        print("Début calibration")
         if not self.ser and not self.sim_mode:
             messagebox.showerror("Erreur", "Pas connecté au port série.")
             return
@@ -593,6 +691,7 @@ class App:
 
     def _cal_next(self):
         """Bouton Next / End pressé."""
+        print("Next masse de calibration")
         if not masse.nextMasse:
             return
 
@@ -618,11 +717,13 @@ class App:
 
     def _cal_previous(self):
         """Bouton Previous pressé."""
+        print("Masse de calibration précédente")
         masse.go_previous()
         self._cal_update_display()
 
     def _cal_stop(self):
         """Bouton Stop pressé ou fermeture de la fenêtre."""
+        print("Arrêt de la calibration")
         masse.stop_collecting()
 
         if self.cal_window is not None:
@@ -647,6 +748,7 @@ class App:
 
     def _cal_recalcul_resultat(self):
         """Bouton pour recalculer les résultats d'une calibration déjà existante"""
+        print("Recalcul des résultats")
         self.cal_dict = masse.load_calibration()
 
         if not self.cal_dict or len(self.cal_dict) < 2:
@@ -864,8 +966,8 @@ class App:
                 raw = int(self.avg_value_lock - self.offset)
                 self.masse_stable_lock.set(f"{raw} ADC")
             self.avg_value_lock = None  # Affiché une fois, réinitialisé pour la prochaine mesure
-        else:
-            self.masse_stable_lock.set("--- g  /  --- kg")
+        #else:
+            #self.masse_stable_lock.set("--- g  /  --- kg")
 
         self.root.after(masseRT_affichage, self._update_masse_display)
 
@@ -952,6 +1054,12 @@ class App:
 
     # ================= SERIAL =================
     def connect(self):
+        print(f"Connection série au port {self.port.get()}")
+
+        self.send_ref()
+        self.send_pid_pos()
+        self.send_pid_cur()
+
         # ===== DÉBUT AJOUT — connexion en mode simulation =====
         if self.sim_var.get():
             self.sim_mode = True
@@ -1043,7 +1151,7 @@ class App:
                                 self.masse_lock_flag = False
                                 print(f"Masse lock définie à {self.avg_value_lock:.1f} ADC")
                             if self.init_tare_flag:
-                                self.offset = avg
+                                self.tare()
                                 self.init_tare_flag = False
                                 print(f"Offset initial défini à {self.offset:.1f} ADC")
                             self.canvas.itemconfig(self.led, fill="green")
@@ -1060,6 +1168,7 @@ class App:
                         self.stable_since = None
                         self.masse_lock_flag = True
                         self.canvas.itemconfig(self.led, fill="red")
+                        self.masse_stable_lock.set("--- g  /  --- kg")
 
             self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
 
@@ -1143,6 +1252,7 @@ class App:
             self.ser.write(b)
             
     def reset_pid(self):
+        print("Reset PID")
         self.send(b'Z')
 
     # ===== DÉBUT AJOUT — interprétation commandes en simulation =====
@@ -1172,35 +1282,40 @@ class App:
 
     def send_ref(self):
         self.send(b'R' + struct.pack('<H', int(self.pos_ref.get())))
-        print(f"Position de référence set à")
+        print(f"Position de référence set à {self.pos_ref.get()}")
 
     def send_pid_pos(self):
         self.send(b'G' + struct.pack('<fff',
                                      float(self.kp.get()),
                                      float(self.ki.get()),
                                      float(self.kd.get())))
-        print(f"Régulateur de position appliqué P = {self.kp} | I = {self.ki} | D = {self.kd}")
+        print(f"Régulateur de position appliqué P = {self.kp.get()} | I = {self.ki.get()} | D = {self.kd.get()}")
 
     def send_pid_cur(self):
         self.send(b'H' + struct.pack('<ff',
                                      float(self.kp_c.get()),
                                      float(self.ki_c.get())))
-        print(f"Régulateur de courant appliqué P = {self.kp_c} | I = {self.ki_c}")
+        print(f"Régulateur de courant appliqué P = {self.kp_c.get()} | I = {self.ki_c.get()}")
 
     # ===== DÉBUT MODIFICATION — tare basée sur la masse =====
     def tare(self):
-        self.offset = self.avg_value
+        #self.offset = self.avg_value
+        self.offset = self.last_courant
+        print(f"Tare avec {self.offset:.1f}")
+        self.masse_stable_lock.set("0.0 g  /  0.0 kg")
         # Si calibration disponible, stocker la masse actuelle comme tare
         if self.cal_dict and len(self.cal_dict) >= 2:
             self.tare_masse = masse.convert_masse(
                 self.last_courant, self.cal_dict, self.cal_model
             )
+            print(f"Tare avec {self.tare_masse}")
         else:
             self.tare_masse = 0.0
     # ===== FIN MODIFICATION — tare basée sur la masse =====
 
     # ================= START / STOP =================
     def start(self):
+        print("Start oscilloscope")
         self.running = True
         self.data.clear()
 
@@ -1216,6 +1331,7 @@ class App:
         self.start_plot()
 
     def stop(self):
+        print("Stop oscilloscope")
         self.running = False
         self.plot_running = False
         self.send(b'E')
@@ -1223,6 +1339,7 @@ class App:
 
     # ================= IDENTIFICATION =================
     def run_identification(self):
+        print("Run identification")
         if not self.ser and not self.sim_mode:
             messagebox.showerror("Erreur", "Pas connecté")
             return
@@ -1373,6 +1490,13 @@ class App:
 
     # ================= EXIT =================
     def on_close(self):
+        # ========== Code pour afficher les prints dans l'app DEBUT
+        try:
+            sys.stdout = self._stdout
+        except Exception:
+            pass
+        # ========== Code pour afficher les prints dans l'app FIN
+
         # ===== DÉBUT AJOUT — nettoyage calibration à la fermeture =====
         masse.stop_collecting()
         if self.cal_window is not None:
