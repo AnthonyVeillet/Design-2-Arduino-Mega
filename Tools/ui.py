@@ -129,6 +129,11 @@ class App:
         self.box_PLOT_WINDOW_SECONDS = None
         # Variable affichage et graphique TonyProtoV2 ===FIN===
 
+        # Variable de masse pour graphique
+        self.val_masse_rt_g = 0.0
+        self.val_masse_st_g = 0.0
+        self.val_masse_lt_g = 0.0
+
         self.create_widgets()
 
         # ========== Code pour afficher les prints dans l'app DEBUT
@@ -980,9 +985,9 @@ class App:
         # --- Masse temps réel ---
         cur = self.last_courant
         if self.cal_dict and len(self.cal_dict) >= 2:
-            masse_rt_g = masse.convert_masse(cur, self.cal_dict, self.cal_model)
-            masse_rt_g -= self.tare_masse
-            self.masse_rt.set(self._format_masse(masse_rt_g))
+            self.val_masse_rt_g = masse.convert_masse(cur, self.cal_dict, self.cal_model)
+            self.val_masse_rt_g -= self.tare_masse
+            self.masse_rt.set(self._format_masse(self.val_masse_rt_g))
         else:
             raw = cur - self.offset
             self.masse_rt.set(f"{raw} ADC")
@@ -990,11 +995,11 @@ class App:
         # --- Masse (stable, après moyennage) ---
         if self.avgCourantStable_value is not None:
             if self.cal_dict and len(self.cal_dict) >= 2:
-                masse_st_g = masse.convert_masse(
+                self.val_masse_st_g = masse.convert_masse(
                     self.avgCourantStable_value, self.cal_dict, self.cal_model
                 )
-                masse_st_g -= self.tare_masse
-                self.masse_stable.set(self._format_masse(masse_st_g))
+                self.val_masse_st_g -= self.tare_masse
+                self.masse_stable.set(self._format_masse(self.val_masse_st_g))
             else:
                 raw = int(self.avgCourantStable_value - self.offset)
                 self.masse_stable.set(f"{raw} ADC")
@@ -1004,11 +1009,11 @@ class App:
         # --- Masse lock (stable, après moyennage) ---
         if self.avg_value_lock is not None:
             if self.cal_dict and len(self.cal_dict) >= 2:
-                masse_lt_g = masse.convert_masse(
+                self.val_masse_lt_g = masse.convert_masse(
                     self.avg_value_lock, self.cal_dict, self.cal_model
                 )
-                masse_lt_g -= self.tare_masse
-                self.masse_stable_lock.set(self._format_masse(masse_lt_g))
+                self.val_masse_lt_g -= self.tare_masse
+                self.masse_stable_lock.set(self._format_masse(self.val_masse_lt_g))
             else:
                 raw = int(self.avg_value_lock - self.offset)
                 self.masse_stable_lock.set(f"{raw} ADC")
@@ -1241,7 +1246,17 @@ class App:
                         self.pos_somme = 0
                         self.pos_count = 0
 
-            self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
+            #self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
+            #print(f"=========test {self.val_masse_rt_g}")
+            self.data.append((
+                                time.time(),
+                                pos,
+                                cur,
+                                cmd_pos,
+                                cmd_cur,
+                                self.val_masse_rt_g,
+                                self.val_masse_st_g
+                            ))
     
     def moyennageCourantStable(self, courant):
         # values = list(self.courantStable_buffer)
@@ -1324,7 +1339,18 @@ class App:
 
             self.root.after(0, self._sim_update_ui, pos, cur, cmd_pos, cmd_cur, flag)
 
-            self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
+            #self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
+
+            #print(f"=========test {self.val_masse_rt_g}")
+            self.data.append((
+                                time.time(),
+                                pos,
+                                cur,
+                                cmd_pos,
+                                cmd_cur,
+                                self.val_masse_rt_g,
+                                self.val_masse_st_g
+                            ))
 
             time.sleep(0.020)  # 50 Hz, comme le main.cpp (toggleCounter % 10)
 
@@ -1383,21 +1409,26 @@ class App:
         print(f"Position de référence set à {self.pos_ref.get()}")
 
     def send_pid_pos(self):
-        self.send(b'G' + struct.pack('<fff',
-                                     float(self.kp.get()),
-                                     float(self.ki.get()),
-                                     float(self.kd.get())))
+        self.send(b'G' + struct.pack(
+                                    '<fff',
+                                    float(self.kp.get()),
+                                    float(self.ki.get()),
+                                    float(self.kd.get())
+                                    ))
         print(f"Régulateur de position appliqué P = {self.kp.get()} | I = {self.ki.get()} | D = {self.kd.get()}")
 
     def send_pid_cur(self):
-        self.send(b'H' + struct.pack('<ff',
-                                     float(self.kp_c.get()),
-                                     float(self.ki_c.get())))
+        self.send(b'H' + struct.pack(
+                                    '<ff',
+                                    float(self.kp_c.get()),
+                                    float(self.ki_c.get())
+                                    ))
         print(f"Régulateur de courant appliqué P = {self.kp_c.get()} | I = {self.ki_c.get()}")
 
     # ===== DÉBUT MODIFICATION — tare basée sur la masse =====
     def tare(self):
         #self.offset = self.avg_value
+        #self.offset = self.avgCourantStable_value
         self.offset = self.last_courant
         print(f"Tare avec {self.offset:.1f}")
         self.masse_stable_lock.set("0.0 g  /  0.0 kg")
@@ -1540,7 +1571,7 @@ class App:
         if self.fig:
             plt.close(self.fig)
 
-        self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1)
+        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1)
 
         # Temps de départ du graphique
         self.plot_t0 = time.time()
@@ -1567,6 +1598,17 @@ class App:
         self.ax2.legend(fontsize=10)
         self.ax2.grid(True)
 
+        # ===== Graphique 3 =====
+        # Mettre alpha à 0 pour rendre une courbe invisible
+        self.line_mass_rt, = self.ax3.plot([], [], color="purple", alpha=1, linewidth=2, label="Temps réel")
+        self.line_mass_stable, = self.ax3.plot([], [], color="black", alpha=1, linewidth=2, label="Asservie et moyennée")
+
+        self.ax3.set_title("Masse mesurée", fontsize=16)
+        self.ax3.set_xlabel("Temps (s)", fontsize=12)
+        self.ax3.set_ylabel("Masse (g)", fontsize=12)
+        self.ax3.legend(fontsize=10)
+        self.ax3.grid(True)
+
         self.plot_running = True
         self.update_plot()
 
@@ -1582,11 +1624,11 @@ class App:
             elapsed = now - self.plot_t0
 
             # Axe X :
-            # - de 0 à 30 s au début
-            # - puis fenêtre glissante de 30 s
+            # - de 0 à PLOT_WINDOW_SECONDS au début
+            # - puis fenêtre glissante de PLOT_WINDOW_SECONDS
             if elapsed <= self.PLOT_WINDOW_SECONDS:
                 x_min = 0
-                x_max = max(elapsed, 0.1)   # évite un axe [0, 0]
+                x_max = max(elapsed, 0.1)
             else:
                 x_min = elapsed - self.PLOT_WINDOW_SECONDS
                 x_max = elapsed
@@ -1594,29 +1636,37 @@ class App:
             # On garde seulement les points visibles dans la fenêtre
             self.data = [d for d in self.data if (d[0] - self.plot_t0) >= x_min]
 
-            # Temps absolu depuis le début du plot
-            t = [d[0] - self.plot_t0 for d in self.data]
-            pos = [d[1] for d in self.data]
-            cur = [d[2] for d in self.data]
-            cmd_pos = [d[3] for d in self.data]
-            cmd_cur = [d[4] for d in self.data]
+            if len(self.data) > 0:
+                #print(f"Plot update: {len(self.data)} points")
+                t = [d[0] - self.plot_t0 for d in self.data]
+                pos = [d[1] for d in self.data]
+                cur = [d[2] for d in self.data]
+                cmd_pos = [d[3] for d in self.data]
+                cmd_cur = [d[4] for d in self.data]
+                mass_rt = [d[5] for d in self.data]
+                mass_stable = [d[6] for d in self.data]
 
-            self.line_cur.set_data(t, cur)
-            self.line_pos.set_data(t, pos)
-            self.line_cmd_pos.set_data(t, cmd_pos)
-            self.line_cmd_cur.set_data(t, cmd_cur)
+                self.line_cur.set_data(t, cur)
+                self.line_pos.set_data(t, pos)
+                self.line_cmd_pos.set_data(t, cmd_pos)
+                self.line_cmd_cur.set_data(t, cmd_cur)
+                self.line_mass_rt.set_data(t, mass_rt)
+                self.line_mass_stable.set_data(t, mass_stable)
 
-            self.ax1.set_xlim(x_min, x_max)
-            self.ax2.set_xlim(x_min, x_max)
+                self.ax1.set_xlim(x_min, x_max)
+                self.ax2.set_xlim(x_min, x_max)
+                self.ax3.set_xlim(x_min, x_max)
 
-            # Recaler seulement l'axe Y
-            self.ax1.relim(visible_only=True)
-            self.ax1.autoscale_view(scalex=False, scaley=True)
+                self.ax1.relim(visible_only=True)
+                self.ax1.autoscale_view(scalex=False, scaley=True)
 
-            self.ax2.relim(visible_only=True)
-            self.ax2.autoscale_view(scalex=False, scaley=True)
+                self.ax2.relim(visible_only=True)
+                self.ax2.autoscale_view(scalex=False, scaley=True)
 
-            self.fig.canvas.draw_idle()
+                self.ax3.relim(visible_only=True)
+                self.ax3.autoscale_view(scalex=False, scaley=True)
+
+                self.fig.canvas.draw_idle()
 
         self.root.after(50, self.update_plot)
 
