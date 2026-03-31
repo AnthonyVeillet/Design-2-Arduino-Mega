@@ -137,7 +137,7 @@ class App:
         conn.pack(fill="x", pady=5)
 
         self.port = ttk.Entry(conn, width=10)
-        self.port.insert(0, "COM4")
+        self.port.insert(0, "COM3")
         self.port.pack(side="left", padx=5)
 
         ttk.Button(conn, text="Connecter", command=self.connect).pack(side="left")
