@@ -962,13 +962,16 @@ class App:
             self.last_courant = cur
             self.last_flag = flag
 
-            # ===== GESTION STABILITÉ PAR PYTHON =====
+            # ===== LISSAGE PRÉALABLE (EMA) =====
+            # alpha entre 0.1 (très lent) et 0.5 (réactif). Ajuste selon tes tests.
+            alpha = 0.2 
+            if not hasattr(self, 'lissage_cur'): self.lissage_cur = cur
+            self.lissage_cur = (alpha * cur) + (1 - alpha) * self.lissage_cur
+
+            # ===== GESTION STABILITÉ SUR VALEUR LISSÉE =====
             now = time.time()
+            self.stab_buffer.append(self.lissage_cur) # On travaille sur la valeur filtrée
 
-            # Ajouter la mesure courante à la fenêtre
-            self.stab_buffer.append(cur)
-
-            # Pas assez d'échantillons au début
             if len(self.stab_buffer) < self.stab_buffer.maxlen:
                 self.stable = False
                 self.stable_since = None
@@ -976,39 +979,36 @@ class App:
             else:
                 values = list(self.stab_buffer)
                 avg = sum(values) / len(values)
+                
                 span = max(values) - min(values)
+                std_dev = statistics.stdev(values) if len(values) > 1 else 0
 
-                # Critère plus robuste
-                # import statistics en haut du fichier si tu utilises cette ligne
-                # std = statistics.pstdev(values)
-                # stable_now = (span <= self.span_threshold and std <= self.std_threshold)
-
-                stable_now = (span <= self.span_threshold)
+                # On peut aussi augmenter un peu les seuils pour tolérer un léger bruit résiduel
+                stable_now = (span <= self.span_threshold) and (std_dev <= self.std_threshold)
 
                 if stable_now:
                     if self.stable_since is None:
                         self.stable_since = now
 
-                    if now - self.stable_since >= self.min_stable_time:
-                        self.stable = True
-                        self.bouton_tare_flag = True
-                        self.avg_value = avg
-                        if self.masse_lock_flag == True:
-                            self.masse_lock_flag = False
-                            self.avg_value_lock = avg
-                        if self.init_tare_flag == True:
-                            self.init_tare_flag = False
-                            self.offset = avg
-                        self.canvas.itemconfig(self.led, fill="green")
+                    if (now - self.stable_since) >= self.min_stable_time:
+                        if not self.stable:
+                            self.stable = True
+                            self.avg_value = avg
+                            if self.masse_lock_flag:
+                                self.avg_value_lock = avg
+                                self.masse_lock_flag = False
+                            self.canvas.itemconfig(self.led, fill="green")
                     else:
                         self.stable = False
                         self.canvas.itemconfig(self.led, fill="orange")
                 else:
-                    self.bouton_tare_flag = False
-                    self.masse_lock_flag = True
-                    self.stable = False
-                    self.stable_since = None
-                    self.canvas.itemconfig(self.led, fill="red")
+                    # On ne repasse en ROUGE que si l'instabilité dure un tout petit peu
+                    # ou si le dépassement est flagrant (ex: 2x le seuil)
+                    if span > (self.span_threshold * 1.5):
+                        self.stable = False
+                        self.stable_since = None
+                        self.masse_lock_flag = True
+                        self.canvas.itemconfig(self.led, fill="red")
 
             self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
 
