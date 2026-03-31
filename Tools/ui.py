@@ -29,8 +29,6 @@ import math
 # ===== FIN AJOUT — imports simulation =====
 
 BAUDRATE = 115200
-WINDOW_TIME = 10
-masseRT_affichage = 100 # Fréquence d'affichage de la masse temps réel (en ms)
 
 # ========== Code pour afficher les prints dans l'app DEBUT
 class TextRedirector:
@@ -124,6 +122,13 @@ class App:
         self._stdout = sys.stdout
         # ========== Code pour afficher les prints dans l'app FIN
 
+        # Variable affichage et graphique TonyProtoV2 ===DEBUT===
+        self.masseRT_affichage = 100 # Fréquence d'affichage de la masse temps réel (en ms)
+        self.PLOT_WINDOW_SECONDS = 30.0 # Temps de la fenetre du graphique (en secondes)
+        self.box_masseRT_affichage = None
+        self.box_PLOT_WINDOW_SECONDS = None
+        # Variable affichage et graphique TonyProtoV2 ===FIN===
+
         self.create_widgets()
 
         # ========== Code pour afficher les prints dans l'app DEBUT
@@ -138,7 +143,7 @@ class App:
         root_container = ttk.Frame(self.root)
         root_container.pack(fill="both", expand=True)
 
-        root_container.columnconfigure(0, weight=4)
+        root_container.columnconfigure(0, weight=8)
         root_container.columnconfigure(1, weight=1)
         root_container.rowconfigure(0, weight=1)
 
@@ -272,16 +277,27 @@ class App:
         ttk.Button(pid_frame, text="Appliquer", command=self.send_pid_cur).grid(row=1, column=4)
 
         # ===== DÉBUT MODIFICATION — affichage Masse temps réel + Masse stable =====
-        measure_frame = ttk.LabelFrame(main, text=f"Mesure (Affichage à chaque {masseRT_affichage} ms)", padding=10)
+        measure_frame = ttk.LabelFrame(main, text=f"Mesure (Affichage à chaque {self.masseRT_affichage} ms)", padding=10)
         measure_frame.pack(fill="x", pady=5)
 
+        # Variable affichage et graphique TonyProtoV2 ===DEBUT===
+        row1_measure_frame = ttk.Frame(measure_frame) # Ajout ui masse
+        row1_measure_frame.pack(fill="x", pady=5) # Ajout ui masse
+
+        row2_measure_frame = ttk.Frame(measure_frame) # Ajout ui masse
+        row2_measure_frame.pack(fill="x", pady=5) # Ajout ui masse
+
+        row3_measure_frame = ttk.Frame(measure_frame) # Ajout ui masse
+        row3_measure_frame.pack(fill="x", pady=5) # Ajout ui masse
+        # Variable affichage et graphique TonyProtoV2 ===FIN===
+
         # LED de stabilité (à droite)
-        self.canvas = tk.Canvas(measure_frame, width=30, height=30)
+        self.canvas = tk.Canvas(row1_measure_frame, width=30, height=30)
         self.canvas.pack(side="left", padx=10)
         self.led = self.canvas.create_oval(3, 3, 25, 25, fill="red")
 
         # Colonne gauche : Masse temps réel
-        rt_frame = ttk.Frame(measure_frame)
+        rt_frame = ttk.Frame(row1_measure_frame)
         rt_frame.pack(side="left", padx=15)
 
         ttk.Label(rt_frame, text="Masse temps réel :").pack(anchor="w")
@@ -295,7 +311,7 @@ class App:
         ).pack(anchor="w")
 
         # Colonne Milieu : Masse (stable, après moyennage)
-        st_frame = ttk.Frame(measure_frame)
+        st_frame = ttk.Frame(row1_measure_frame)
         st_frame.pack(side="left", padx=15)
 
         ttk.Label(st_frame, text="Masse moyennée :").pack(anchor="w")
@@ -309,7 +325,7 @@ class App:
         ).pack(anchor="w")
 
         # Colonne droite : Masse lock après moyennage (stable, après moyennage)
-        lt_frame = ttk.Frame(measure_frame)
+        lt_frame = ttk.Frame(row1_measure_frame)
         lt_frame.pack(side="left", padx=15)
 
         ttk.Label(lt_frame, text="Masse :").pack(anchor="w")
@@ -331,8 +347,9 @@ class App:
         self.root.after(100, self._update_masse_display)
         # ===== FIN MODIFICATION — affichage Masse temps réel + Masse stable =====
 
-        action = ttk.Frame(main)
-        action.pack(pady=10)
+        # Variable affichage et graphique TonyProtoV2 ===DEBUT===
+        action = ttk.Frame(row2_measure_frame)
+        action.pack(fill="x", pady=5)
 
         ttk.Button(action, text="Start", command=self.start).grid(row=0, column=0, padx=5)
         ttk.Button(action, text="Stop", command=self.stop).grid(row=0, column=1, padx=5)
@@ -340,7 +357,28 @@ class App:
         self.tare_btn.grid(row=0, column=2, padx=5)
         ttk.Button(action, text="Reset PID", command=self.reset_pid).grid(row=0, column=3, padx=5)
         ttk.Button(action, text="Identification complète", command=self.run_identification).grid(row=0, column=4, padx=5)
-        
+
+
+        action2 = ttk.Frame(row3_measure_frame)
+        action2.pack(fill="x", pady=10)
+
+        row1_action2 = ttk.Frame(action2)
+        row1_action2.pack(fill="x", pady=10)
+
+        row2_action2 = ttk.Frame(action2)
+        row2_action2.pack(fill="x", pady=10)
+    
+        self.box_masseRT_affichage = ttk.Entry(row1_action2, width=10)
+        self.box_masseRT_affichage.insert(0, str(self.masseRT_affichage))
+        self.box_masseRT_affichage.pack(side="left", padx=5)
+        ttk.Button(row1_action2, text="Update Hz affichage masse", command=self.update_affichage_masseRT).pack(side="left", padx=5)
+
+        self.box_PLOT_WINDOW_SECONDS = ttk.Entry(row2_action2, width=10)
+        self.box_PLOT_WINDOW_SECONDS.insert(0, str(self.PLOT_WINDOW_SECONDS))
+        self.box_PLOT_WINDOW_SECONDS.pack(side="left", padx=5)
+        ttk.Button(row2_action2, text="Update temps graphique", command=self.update_temps_graph).pack(side="left", padx=5)
+        # Variable affichage et graphique TonyProtoV2 ===FIN===
+
         # ===== DÉBUT AJOUT — section Calibration dans la fenêtre principale =====
         self._create_calibration_section(main)
         # ===== FIN AJOUT — section Calibration dans la fenêtre principale =====
@@ -978,7 +1016,7 @@ class App:
         #else:
             #self.masse_stable_lock.set("--- g  /  --- kg")
 
-        self.root.after(masseRT_affichage, self._update_masse_display)
+        self.root.after(self.masseRT_affichage, self._update_masse_display)
 
     # ===== FIN AJOUT — mise à jour continue de l'affichage masse =====
 
@@ -1375,7 +1413,7 @@ class App:
 
     # ================= START / STOP =================
     def start(self):
-        print("Start oscilloscope")
+        print(f"Start oscilloscope avec fenêtre de {self.PLOT_WINDOW_SECONDS} secondes")
         self.running = True
         self.data.clear()
 
@@ -1504,15 +1542,35 @@ class App:
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1)
 
-        self.line_cur, = self.ax1.plot([], [])
-        self.line_pos, = self.ax1.plot([], [])
+        # Temps de départ du graphique
+        self.plot_t0 = time.time()
 
-        self.line_cmd_pos, = self.ax2.plot([], [])
-        self.line_cmd_cur, = self.ax2.plot([], [])
+        # ===== Graphique 1 =====
+        # Mettre alpha à 0 pour rendre une courbe invisible
+        self.line_cur, = self.ax1.plot([], [], color="red", alpha=1, linewidth=2, label="Courant mesuré")
+        self.line_pos, = self.ax1.plot([], [], color="blue", alpha=1, linewidth=2, label="Position mesurée")
+
+        self.ax1.set_title("Mesures en temps réel", fontsize=16)
+        self.ax1.set_xlabel("Temps (s)", fontsize=12)
+        self.ax1.set_ylabel("Valeur (bit ADC)", fontsize=12)
+        self.ax1.legend(fontsize=10)
+        self.ax1.grid(True)
+
+        # ===== Graphique 2 =====
+        # Mettre alpha à 0 pour rendre une courbe invisible
+        self.line_cmd_pos, = self.ax2.plot([], [], color="green", alpha=1, linewidth=2, label="Commande position")
+        self.line_cmd_cur, = self.ax2.plot([], [], color="orange", alpha=1, linewidth=2, label="Commande courant")
+
+        self.ax2.set_title("Commandes en temps réel", fontsize=16)
+        self.ax2.set_xlabel("Temps (s)", fontsize=12)
+        self.ax2.set_ylabel("Valeur (bit ADC)", fontsize=12)
+        self.ax2.legend(fontsize=10)
+        self.ax2.grid(True)
 
         self.plot_running = True
         self.update_plot()
 
+        plt.tight_layout()
         plt.show(block=False)
 
     def update_plot(self):
@@ -1521,11 +1579,23 @@ class App:
 
         if len(self.data) > 2:
             now = time.time()
-            self.data = [d for d in self.data if now - d[0] <= WINDOW_TIME]
+            elapsed = now - self.plot_t0
 
-            t0 = self.data[0][0]
+            # Axe X :
+            # - de 0 à 30 s au début
+            # - puis fenêtre glissante de 30 s
+            if elapsed <= self.PLOT_WINDOW_SECONDS:
+                x_min = 0
+                x_max = max(elapsed, 0.1)   # évite un axe [0, 0]
+            else:
+                x_min = elapsed - self.PLOT_WINDOW_SECONDS
+                x_max = elapsed
 
-            t = [d[0] - t0 for d in self.data]
+            # On garde seulement les points visibles dans la fenêtre
+            self.data = [d for d in self.data if (d[0] - self.plot_t0) >= x_min]
+
+            # Temps absolu depuis le début du plot
+            t = [d[0] - self.plot_t0 for d in self.data]
             pos = [d[1] for d in self.data]
             cur = [d[2] for d in self.data]
             cmd_pos = [d[3] for d in self.data]
@@ -1536,17 +1606,28 @@ class App:
             self.line_cmd_pos.set_data(t, cmd_pos)
             self.line_cmd_cur.set_data(t, cmd_cur)
 
-            self.ax1.set_xlim(max(0, t[-1] - WINDOW_TIME), t[-1])
-            self.ax2.set_xlim(max(0, t[-1] - WINDOW_TIME), t[-1])
+            self.ax1.set_xlim(x_min, x_max)
+            self.ax2.set_xlim(x_min, x_max)
 
-            self.ax1.relim()
-            self.ax1.autoscale_view()
-            self.ax2.relim()
-            self.ax2.autoscale_view()
+            # Recaler seulement l'axe Y
+            self.ax1.relim(visible_only=True)
+            self.ax1.autoscale_view(scalex=False, scaley=True)
+
+            self.ax2.relim(visible_only=True)
+            self.ax2.autoscale_view(scalex=False, scaley=True)
 
             self.fig.canvas.draw_idle()
 
         self.root.after(50, self.update_plot)
+
+    def update_affichage_masseRT(self):
+        self.masseRT_affichage = int(self.box_masseRT_affichage.get())
+        print(f"Fréquence d'affichage des masses set à {self.masseRT_affichage} ms")
+
+
+    def update_temps_graph(self):
+        self.PLOT_WINDOW_SECONDS = int(self.box_PLOT_WINDOW_SECONDS.get())
+        print(f"Fenêtre de temps du graphique set à {self.PLOT_WINDOW_SECONDS} secondes")
 
     # ================= EXIT =================
     def on_close(self):
