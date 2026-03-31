@@ -273,6 +273,10 @@ class App:
         action = ttk.Frame(main)
         action.pack(pady=10)
 
+        # Boutons Tare
+        tare_frame = ttk.Frame(main)
+        tare_frame.pack(pady=10)
+
         ttk.Button(action, text="Start", command=self.start).grid(row=0, column=0, padx=5)
         ttk.Button(action, text="Stop", command=self.stop).grid(row=0, column=1, padx=5)
         self.tare_btn = ttk.Button(action, text="Tare", command=self.tare, state="disabled")
@@ -309,10 +313,10 @@ class App:
         row2 = ttk.Frame(cal_frame)
         row2.pack(fill="x", pady=2)
 
-        ttk.Label(row2, text="Temps de moyennage (ms, min 500) :").pack(side="left")
-        self.cal_avg_time = tk.IntVar(value=500)
+        ttk.Label(row2, text="Temps de moyennage (ms, min 1000) :").pack(side="left")
+        self.cal_avg_time = tk.IntVar(value=2000)
         self.cal_avg_spin = tk.Spinbox(
-            row2, from_=500, to=30000, increment=500, width=7,
+            row2, from_=1000, to=30000, increment=500, width=7,
             textvariable=self.cal_avg_time,
         )
         self.cal_avg_spin.pack(side="left", padx=5)
@@ -346,33 +350,16 @@ class App:
         model_combo.bind("<<ComboboxSelected>>", self._on_model_changed)
         # ===== FIN AJOUT — sélection du modèle de calibration =====
 
-        # Ligne boutons
-        btn_row = ttk.Frame(cal_frame)
-        btn_row.pack(pady=5)
-
-        btn_row.columnconfigure(0, weight=1)
-        btn_row.columnconfigure(1, weight=1)
-        btn_row.columnconfigure(2, weight=1)
-
+        # Bouton Lancer
         ttk.Button(
-            btn_row,
-            text="Lancer la calibration",
+            cal_frame, text="Lancer la calibration",
             command=self._launch_calibration,
-        ).grid(row=0, column=1, padx=5)
+        ).pack(pady=5)
 
         ttk.Button(
-            btn_row,
-            text="Calcul résultat d'une calibration existante",
+            cal_frame, text="Calcul résultat d'une calibration existante",
             command=self._cal_recalcul_resultat,
-        ).grid(row=0, column=2, padx=5)
-
-        self.btn_update_tps_moy = ttk.Button(
-            btn_row,
-            text="Update temps moyennage",
-            command=self.update_tps_moy,
-            state="disabled"
-        )
-        self.btn_update_tps_moy.grid(row=0, column=0, padx=5)
+        ).pack(pady=5)
 
         # Zone des résultats (remplie après la calibration)
         self.cal_results_frame = ttk.LabelFrame(
@@ -414,11 +401,6 @@ class App:
             self.tare_masse = masse.convert_masse(
                 self.offset, self.cal_dict, self.cal_model
             )
-
-    def update_tps_moy(self):
-        self.min_stable_time = self.cal_avg_spin / 1000
-        print(f"Nouveau temps de moyennage set à {self.min_stable_time} secondes")
-
     # ===== FIN AJOUT — changement de modèle de calibration =====
 
     def _launch_calibration(self):
@@ -647,23 +629,13 @@ class App:
 
     def _cal_recalcul_resultat(self):
         """Bouton pour recalculer les résultats d'une calibration déjà existante"""
-        self.cal_dict = masse.load_calibration()
+        print(f"Calibration importée recalculée")
 
-        if not self.cal_dict or len(self.cal_dict) < 2:
-            messagebox.showwarning("Attention", "Aucun fichier calibration.json trouvé ou moins de 2 points.")
-            return
+        # ===== DÉBUT AJOUT — recharger le dictionnaire de calibration =====
+        #self.cal_dict = masse.load_calibration()
+        #self.tare_masse = 0.0  # Reset tare après nouvelle calibration
+        # ===== FIN AJOUT — recharger le dictionnaire de calibration =====
 
-        # Reconstruire masse.results à partir du dictionnaire chargé
-        masse.results = []
-        for i, (masse_str, tension_v) in enumerate(self.cal_dict.items()):
-            masse.results.append({
-                "numero": i + 1,
-                "masse_g": float(masse_str),
-                "adc_moyen": tension_v / masse.V_REF * masse.ADC_MAX,
-                "tension_v": float(tension_v),
-            })
-
-        print(f"Calibration importée : {len(masse.results)} points")
         self._display_calibration_results()
 
     def _display_calibration_results(self):
@@ -1035,17 +1007,16 @@ class App:
                         if not self.stable:
                             self.stable = True
                             self.tare_btn.config(state="normal") # Activer le bouton Tare
-                            self.btn_update_tps_moy.config(state="normal") # Activer le tps moy
                             self.avg_value = avg
-                            print(f"Stabilisé à {self.avg_value:.1f} ADC (span={span:.1f}, std={std_dev:.2f})")
+                            print(f"Stabilisé à {self.avg_value:.1f} ADC (span={span:.1f}, std={std_dev:.2f})\n")
                             if self.masse_lock_flag:
                                 self.avg_value_lock = avg
                                 self.masse_lock_flag = False
-                                print(f"Masse lock définie à {self.avg_value_lock:.1f} ADC")
+                                print(f"Masse lock définie à {self.avg_value_lock:.1f} ADC\n")
                             if self.init_tare_flag:
                                 self.offset = avg
                                 self.init_tare_flag = False
-                                print(f"Offset initial défini à {self.offset:.1f} ADC")
+                                print(f"Offset initial défini à {self.offset:.1f} ADC\n")
                             self.canvas.itemconfig(self.led, fill="green")
                     else:
                         self.stable = False
@@ -1056,7 +1027,6 @@ class App:
                     if span > (self.span_threshold * 1.5):
                         self.stable = False
                         self.tare_btn.config(state="disabled") # Désactiver le bouton Tare
-                        self.btn_update_tps_moy.config(state="normal") # Désctiver le tps moy
                         self.stable_since = None
                         self.masse_lock_flag = True
                         self.canvas.itemconfig(self.led, fill="red")
@@ -1172,20 +1142,17 @@ class App:
 
     def send_ref(self):
         self.send(b'R' + struct.pack('<H', int(self.pos_ref.get())))
-        print(f"Position de référence set à")
 
     def send_pid_pos(self):
         self.send(b'G' + struct.pack('<fff',
                                      float(self.kp.get()),
                                      float(self.ki.get()),
                                      float(self.kd.get())))
-        print(f"Régulateur de position appliqué P = {self.kp} | I = {self.ki} | D = {self.kd}")
 
     def send_pid_cur(self):
         self.send(b'H' + struct.pack('<ff',
                                      float(self.kp_c.get()),
                                      float(self.ki_c.get())))
-        print(f"Régulateur de courant appliqué P = {self.kp_c} | I = {self.ki_c}")
 
     # ===== DÉBUT MODIFICATION — tare basée sur la masse =====
     def tare(self):
