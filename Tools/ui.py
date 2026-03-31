@@ -110,7 +110,10 @@ class App:
         self.span_threshold = 6.0
         self.std_threshold = 1.5
         self.min_stable_time = 1
-        self.pos_error_threshold = 3.0
+
+        self.pos_somme = 0
+        self.pos_count = 0
+        self.pos_error_threshold = 2.0
 
         # self.courantStable_buffer = deque(maxlen=200)
         self.courantStable_somme = 0
@@ -1131,13 +1134,16 @@ class App:
 
             # Vérification de l'erreur de position par rapport à la référence
             # On utilise la valeur lissée pour éviter les micro-sauts
+            self.pos_somme += self.lissage_pos
+            self.pos_count += 1
+            pos_avg = self.pos_somme / self.pos_count
 
             try:
                 current_pos_ref = float(self.pos_ref.get())
             except ValueError:
                 current_pos_ref = 0.0 # Sécurité si le champ est vide
 
-            erreur_pos = abs(self.lissage_pos - current_pos_ref)
+            erreur_pos = abs(pos_avg - current_pos_ref)
             pos_ok = erreur_pos <= self.pos_error_threshold
 
             if len(self.stab_buffer) < self.stab_buffer.maxlen:
@@ -1176,6 +1182,9 @@ class App:
                             if self.init_tare_flag:
                                 self.tare()
                                 self.init_tare_flag = False
+                            
+                            self.pos_somme = 0
+                            self.pos_count = 0
                                 
                             self.canvas.itemconfig(self.led, fill="green")
                     else:
@@ -1191,6 +1200,8 @@ class App:
                         self.masse_lock_flag = True
                         self.canvas.itemconfig(self.led, fill="red")
                         self.masse_stable_lock.set("--- g  /  --- kg")
+                        self.pos_somme = 0
+                        self.pos_count = 0
 
             self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
     
