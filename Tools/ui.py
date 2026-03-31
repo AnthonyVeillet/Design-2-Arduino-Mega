@@ -87,11 +87,15 @@ class App:
         self.stable_since = None
 
         self.stab_buffer = deque(maxlen=150)
-        self.span_threshold = 6.0
-        self.std_threshold = 1.5
+        self.span_threshold = 10.0  # (Anciennement 6.0) Écart max entre le min et le max du buffer
+        self.std_threshold = 3.0   # (Anciennement 1.5) Écart-type autorisé
         self.min_stable_time = 0.5
 
         self.create_widgets()
+
+        self.stable_values = []          # Liste pour accumuler les points stables
+        self.averaging_done = False      # Flag pour savoir si le moyennage est fini
+        self.averaging_duration = 2    # Temps de moyennage souhaité (en secondes)
 
     # ================= UI =================
     def create_widgets(self):
@@ -753,37 +757,35 @@ class App:
         return f"{masse_g:.1f} g  /  {masse_kg:.4f} kg"
 
     def _update_masse_display(self):
-        """
-        Polling continu (~100ms) pour mettre à jour les deux affichages :
-        - Masse temps réel : valeur instantanée (même si balance instable)
-        - Masse : valeur après stabilisation et moyennage
-        Les deux sont affichées en grammes et kilogrammes.
-        Si une calibration est disponible, les valeurs ADC sont converties
-        en masse via le modèle de calibration. Sinon, affichage brut ADC.
-        """
-        # --- Masse temps réel ---
-        cur = self.last_courant
-        if self.cal_dict and len(self.cal_dict) >= 2:
-            masse_rt_g = masse.convert_masse(cur, self.cal_dict, self.cal_model)
-            masse_rt_g -= self.tare_masse
-            self.masse_rt.set(self._format_masse(masse_rt_g))
+        # --- GESTION DE LA LED ---
+        if self.averaging_done:
+            self.canvas.itemconfig(self.led, fill="green")
+        elif self.stable_since is not None:
+            self.canvas.itemconfig(self.led, fill="orange") # Stable, mais en cours de moyennage
         else:
-            raw = cur - self.offset
-            self.masse_rt.set(f"{raw} ADC")
+            self.canvas.itemconfig(self.led, fill="red") # Instable
 
-        # --- Masse (stable, après moyennage) ---
-        if self.avg_value is not None:
-            if self.cal_dict and len(self.cal_dict) >= 2:
-                masse_st_g = masse.convert_masse(
-                    self.avg_value, self.cal_dict, self.cal_model
-                )
-                masse_st_g -= self.tare_masse
-                self.masse_stable.set(self._format_masse(masse_st_g))
-            else:
-                raw = int(self.avg_value - self.offset)
-                self.masse_stable.set(f"{raw} ADC")
+        # --- MASSE TEMPS RÉEL (On utilise la valeur lissée pour éviter que l'UI saute) ---
+        cur_val = getattr(self, 'lissage_cur', self.last_courant)
+        if self.cal_dict and len(self.cal_dict) >= 2:
+            m_rt = masse.convert_masse(cur_val, self.cal_dict, self.cal_model) - self.tare_masse
+            self.masse_rt.set(self._format_masse(m_rt))
         else:
-            self.masse_stable.set("--- g  /  --- kg")
+            self.masse_rt.set(f"{cur_val - self.offset:.1f} ADC")
+
+        # --- MASSE STABLE (Affichée uniquement quand averaging_done est True) ---
+        if self.averaging_done and self.avg_value is not None:
+            if self.cal_dict and len(self.cal_dict) >= 2:
+                m_st = masse.convert_masse(self.avg_value, self.cal_dict, self.cal_model) - self.tare_masse
+                self.masse_stable.set(self._format_masse(m_st))
+            else:
+                self.masse_stable.set(f"{int(self.avg_value - self.offset)} ADC")
+        else:
+            # Affiche un état d'attente
+            if self.stable_since is not None:
+                self.masse_stable.set("Calcul...")
+            else:
+                self.masse_stable.set("--- g  /  --- kg")
 
         self.root.after(masseRT_affichage, self._update_masse_display)
 
@@ -921,46 +923,51 @@ class App:
             self.last_courant = cur
             self.last_flag = flag
 
-            # ===== GESTION STABILITÉ PAR PYTHON =====
+            # 1. Récupération de la valeur brute
+            cur = self.last_courant 
+
+            # 2. LISSAGE EMA (pour stabiliser l'affichage et la détection)
+            alpha = 0.2 
+            if not hasattr(self, 'lissage_cur'): self.lissage_cur = cur
+            self.lissage_cur = (alpha * cur) + (1 - alpha) * self.lissage_cur
+
+            # 3. GESTION STABILITÉ & MOYENNAGE
             now = time.time()
+            self.stab_buffer.append(self.lissage_cur) # On utilise la valeur lissée
 
-            # Ajouter la mesure courante à la fenêtre
-            self.stab_buffer.append(cur)
-
-            # Pas assez d'échantillons au début
-            if len(self.stab_buffer) < self.stab_buffer.maxlen:
-                self.stable = False
-                self.stable_since = None
-                self.canvas.itemconfig(self.led, fill="orange")
-            else:
+            if len(self.stab_buffer) >= self.stab_buffer.maxlen:
                 values = list(self.stab_buffer)
-                avg = sum(values) / len(values)
                 span = max(values) - min(values)
+                std_dev = statistics.stdev(values)
 
-                # Critère plus robuste
-                # import statistics en haut du fichier si tu utilises cette ligne
-                # std = statistics.pstdev(values)
-                # stable_now = (span <= self.span_threshold and std <= self.std_threshold)
+                # Ton critère de stabilité actuel
+                is_quiet = (span <= self.span_threshold) and (std_dev <= self.std_threshold)
 
-                stable_now = (span <= self.span_threshold)
-
-                if stable_now:
+                if is_quiet:
                     if self.stable_since is None:
                         self.stable_since = now
+                        self.stable_values = [] # On commence le moyennage ICI
+                        self.averaging_done = False
 
-                    if now - self.stable_since >= self.min_stable_time:
+                    # On accumule les points TANT QUE c'est stable
+                    self.stable_values.append(self.lissage_cur)
+
+                    # Si le temps requis est atteint, on valide la mesure finale
+                    time_elapsed = now - self.stable_since
+                    if time_elapsed >= self.averaging_duration and not self.averaging_done:
+                        self.avg_value = sum(self.stable_values) / len(self.stable_values)
+                        self.averaging_done = True
                         self.stable = True
-                        self.avg_value = avg
-                        self.canvas.itemconfig(self.led, fill="green")
-                    else:
-                        self.stable = False
-                        self.canvas.itemconfig(self.led, fill="orange")
+                        winsound.Beep(1000, 100)
                 else:
+                    # Si ça bouge, on reset TOUT
                     self.stable = False
+                    self.averaging_done = False
                     self.stable_since = None
-                    self.canvas.itemconfig(self.led, fill="red")
+                    self.stable_values = []
 
             self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
+
 
     # ===== DÉBUT AJOUT — simulation Arduino =====
 
