@@ -1600,56 +1600,67 @@ class App:
 
     # ================= OSCILLO =================
     def start_plot(self):
-        if self.fig:
-            plt.close(self.fig)
+            if self.fig:
+                try:
+                    self.plot_window.destroy()
+                except Exception:
+                    pass
 
-        #MODIF 1 self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1)
-        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(14, 9), constrained_layout=True)
-        #self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(14, 9))
-        #self.fig.subplots_adjust(top=0.92, bottom=0.07, left=0.08, right=0.98, hspace=0.55)
-        self.fig.suptitle("Équipe 1", fontsize=20)
+            # Fenêtre tkinter dédiée au lieu de plt.show()
+            self.plot_window = tk.Toplevel(self.root)
+            self.plot_window.title("Oscilloscope")
+            self.plot_window.geometry("1200x800")
+            self.plot_window.protocol("WM_DELETE_WINDOW", self._close_plot)
 
-        # Temps de départ du graphique
-        self.plot_t0 = time.time()
+            self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(14, 9), constrained_layout=True)
+            self.fig.suptitle("Équipe 1", fontsize=20)
 
-        # ===== Graphique 1 =====
-        # Mettre alpha à 0 pour rendre une courbe invisible
-        self.line_cur, = self.ax1.plot([], [], color="red", alpha=1, linewidth=2, label="Courant mesuré")
-        self.line_pos, = self.ax1.plot([], [], color="blue", alpha=1, linewidth=2, label="Position mesurée")
+            self.plot_t0 = time.time()
 
-        self.ax1.set_title("Mesures en temps réel", fontsize=16)
-        self.ax1.set_xlabel("Temps (s)", fontsize=12)
-        self.ax1.set_ylabel("Valeur (bit ADC)", fontsize=12)
-        self.ax1.legend(fontsize=10)
-        self.ax1.grid(True)
+            self.line_cur, = self.ax1.plot([], [], color="red", alpha=1, linewidth=2, label="Courant mesuré")
+            self.line_pos, = self.ax1.plot([], [], color="blue", alpha=1, linewidth=2, label="Position mesurée")
+            self.ax1.set_title("Mesures en temps réel", fontsize=16)
+            self.ax1.set_xlabel("Temps (s)", fontsize=12)
+            self.ax1.set_ylabel("Valeur (bit ADC)", fontsize=12)
+            self.ax1.legend(fontsize=10)
+            self.ax1.grid(True)
 
-        # ===== Graphique 2 =====
-        # Mettre alpha à 0 pour rendre une courbe invisible
-        self.line_cmd_pos, = self.ax2.plot([], [], color="green", alpha=1, linewidth=2, label="Commande position")
-        self.line_cmd_cur, = self.ax2.plot([], [], color="orange", alpha=1, linewidth=2, label="Commande courant")
+            self.line_cmd_pos, = self.ax2.plot([], [], color="green", alpha=1, linewidth=2, label="Commande position")
+            self.line_cmd_cur, = self.ax2.plot([], [], color="orange", alpha=1, linewidth=2, label="Commande courant")
+            self.ax2.set_title("Commandes en temps réel", fontsize=16)
+            self.ax2.set_xlabel("Temps (s)", fontsize=12)
+            self.ax2.set_ylabel("Valeur (bit ADC)", fontsize=12)
+            self.ax2.legend(fontsize=10)
+            self.ax2.grid(True)
 
-        self.ax2.set_title("Commandes en temps réel", fontsize=16)
-        self.ax2.set_xlabel("Temps (s)", fontsize=12)
-        self.ax2.set_ylabel("Valeur (bit ADC)", fontsize=12)
-        self.ax2.legend(fontsize=10)
-        self.ax2.grid(True)
+            self.line_mass_rt, = self.ax3.plot([], [], color="purple", alpha=1, linewidth=2, label="Temps réel")
+            self.line_mass_stable, = self.ax3.plot([], [], color="black", alpha=1, linewidth=2, label="Asservie et moyennée")
+            self.ax3.set_title("Masse mesurée", fontsize=16)
+            self.ax3.set_xlabel("Temps (s)", fontsize=12)
+            self.ax3.set_ylabel("Masse (g)", fontsize=12)
+            self.ax3.legend(fontsize=10)
+            self.ax3.grid(True)
 
-        # ===== Graphique 3 =====
-        # Mettre alpha à 0 pour rendre une courbe invisible
-        self.line_mass_rt, = self.ax3.plot([], [], color="purple", alpha=1, linewidth=2, label="Temps réel")
-        self.line_mass_stable, = self.ax3.plot([], [], color="black", alpha=1, linewidth=2, label="Asservie et moyennée")
+            # Embarquer dans le Toplevel tkinter
+            self.plot_canvas = FigureCanvasTkAgg(self.fig, master=self.plot_window)
+            self.plot_canvas.get_tk_widget().pack(fill="both", expand=True)
 
-        self.ax3.set_title("Masse mesurée", fontsize=16)
-        self.ax3.set_xlabel("Temps (s)", fontsize=12)
-        self.ax3.set_ylabel("Masse (g)", fontsize=12)
-        self.ax3.legend(fontsize=10)
-        self.ax3.grid(True)
+            self.plot_running = True
+            self.update_plot()
 
-        self.plot_running = True
-        self.update_plot()
 
-        # MODIF 1 plt.tight_layout(rect=[0, 0, 1, 0.96])
-        plt.show(block=False)
+    def _close_plot(self):
+            """Fermeture propre de la fenêtre graphique."""
+            self.plot_running = False
+            if hasattr(self, 'plot_window') and self.plot_window:
+                try:
+                    plt.close(self.fig)
+                    self.plot_window.destroy()
+                except Exception:
+                    pass
+                self.fig = None
+                self.plot_window = None
+
 
     def update_plot(self):
         if not self.plot_running:
@@ -1703,7 +1714,8 @@ class App:
                 self.ax3.relim(visible_only=True)
                 self.ax3.autoscale_view(scalex=False, scaley=True)
 
-                self.fig.canvas.draw_idle()
+                #self.fig.canvas.draw_idle() #MODIF Claude final
+                self.plot_canvas.draw_idle()
 
         self.root.after(self.refresh_graph, self.update_plot)
 
