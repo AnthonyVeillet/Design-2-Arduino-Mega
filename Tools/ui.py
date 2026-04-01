@@ -17,6 +17,191 @@ import statistics
 import sys
 from tkinter.scrolledtext import ScrolledText
 
+# =========UI MODIF FINAL DEBUT==========
+# — Constantes du thème sombre —
+DARK_BG       = "#1e1e2e"    # Fond principal
+DARK_BG2      = "#252536"    # Fond secondaire (frames, entries)
+DARK_BG3      = "#2e2e42"    # Fond tertiaire (hover / séparations)
+DARK_FG       = "#cdd6f4"    # Texte principal
+DARK_FG_DIM   = "#a6adc8"    # Texte secondaire
+ACCENT        = "#89b4fa"    # Bleu accent
+ACCENT_HOVER  = "#74c7ec"    # Bleu accent hover
+GREEN_LED     = "#a6e3a1"    # LED verte
+ORANGE_LED    = "#fab387"    # LED orange
+RED_LED       = "#f38ba8"    # LED rouge
+ENTRY_BG      = "#313244"    # Fond des champs de saisie
+ENTRY_FG      = "#cdd6f4"    # Texte des champs
+BORDER_COLOR  = "#45475a"    # Bordures
+BUTTON_BG     = "#45475a"    # Fond boutons
+BUTTON_FG     = "#cdd6f4"    # Texte boutons
+BUTTON_HOVER  = "#585b70"    # Hover boutons
+CONSOLE_BG    = "#181825"    # Fond console
+CONSOLE_FG    = "#a6e3a1"    # Texte console (vert terminal)
+TROUGH_COLOR  = "#313244"    # Fond scrollbar
+SELECT_BG     = "#585b70"    # Sélection fond
+SELECT_FG     = "#cdd6f4"    # Sélection texte
+
+
+def apply_dark_theme(root):
+    """Configure un thème sombre complet pour ttk et tk."""
+    style = ttk.Style(root)
+    style.theme_use("clam")
+
+    # — Fond global —
+    root.configure(bg=DARK_BG)
+
+    # — TFrame —
+    style.configure("TFrame", background=DARK_BG)
+
+    # — TLabel —
+    style.configure("TLabel",
+                     background=DARK_BG, foreground=DARK_FG,
+                     font=("Segoe UI", 10))
+
+    # — TLabel bold pour titres —
+    style.configure("Bold.TLabel",
+                     background=DARK_BG, foreground=DARK_FG,
+                     font=("Segoe UI", 10, "bold"))
+
+    # — Gros chiffre (masse) —
+    style.configure("Big.TLabel",
+                     background=DARK_BG, foreground=ACCENT,
+                     font=("Segoe UI", 14, "bold"))
+
+    # — Header de tableau —
+    style.configure("Header.TLabel",
+                     background=DARK_BG, foreground=ACCENT,
+                     font=("Segoe UI", 9, "bold"))
+
+    # — TLabelframe —
+    style.configure("TLabelframe",
+                     background=DARK_BG,
+                     foreground=ACCENT,
+                     bordercolor=BORDER_COLOR,
+                     relief="groove",
+                     borderwidth=1)
+    style.configure("TLabelframe.Label",
+                     background=DARK_BG,
+                     foreground=ACCENT,
+                     font=("Segoe UI", 10, "bold"))
+
+    # — TEntry —
+    style.configure("TEntry",
+                     fieldbackground=ENTRY_BG,
+                     foreground=ENTRY_FG,
+                     insertcolor=ENTRY_FG,
+                     bordercolor=BORDER_COLOR,
+                     lightcolor=BORDER_COLOR,
+                     darkcolor=BORDER_COLOR)
+    style.map("TEntry",
+              fieldbackground=[("focus", DARK_BG3)],
+              bordercolor=[("focus", ACCENT)])
+
+    # — TButton —
+    style.configure("TButton",
+                     background=BUTTON_BG,
+                     foreground=BUTTON_FG,
+                     bordercolor=BORDER_COLOR,
+                     lightcolor=BORDER_COLOR,
+                     darkcolor=BORDER_COLOR,
+                     font=("Segoe UI", 9),
+                     padding=(10, 4))
+    style.map("TButton",
+              background=[("active", BUTTON_HOVER), ("disabled", DARK_BG2)],
+              foreground=[("disabled", BORDER_COLOR)])
+
+    # — Accent.TButton (boutons principaux) —
+    style.configure("Accent.TButton",
+                     background=ACCENT,
+                     foreground=DARK_BG,
+                     bordercolor=ACCENT,
+                     font=("Segoe UI", 9, "bold"),
+                     padding=(12, 5))
+    style.map("Accent.TButton",
+              background=[("active", ACCENT_HOVER), ("disabled", BORDER_COLOR)],
+              foreground=[("disabled", DARK_BG2)])
+
+    # — TRadiobutton —
+    style.configure("TRadiobutton",
+                     background=DARK_BG,
+                     foreground=DARK_FG,
+                     indicatorbackground=ENTRY_BG,
+                     indicatorforeground=ACCENT,
+                     font=("Segoe UI", 10))
+    style.map("TRadiobutton",
+              background=[("active", DARK_BG2)],
+              indicatorbackground=[("selected", ACCENT)])
+
+    # — TCheckbutton —
+    style.configure("TCheckbutton",
+                     background=DARK_BG,
+                     foreground=DARK_FG,
+                     indicatorbackground=ENTRY_BG,
+                     indicatorforeground=ACCENT,
+                     font=("Segoe UI", 10))
+    style.map("TCheckbutton",
+              background=[("active", DARK_BG2)],
+              indicatorbackground=[("selected", ACCENT)])
+
+    # — TCombobox —
+    style.configure("TCombobox",
+                     fieldbackground=ENTRY_BG,
+                     background=BUTTON_BG,
+                     foreground=ENTRY_FG,
+                     arrowcolor=DARK_FG,
+                     bordercolor=BORDER_COLOR,
+                     lightcolor=BORDER_COLOR,
+                     darkcolor=BORDER_COLOR)
+    style.map("TCombobox",
+              fieldbackground=[("readonly", ENTRY_BG)],
+              foreground=[("readonly", ENTRY_FG)],
+              bordercolor=[("focus", ACCENT)])
+
+    # — Scrollbar —
+    style.configure("Vertical.TScrollbar",
+                     background=BUTTON_BG,
+                     troughcolor=TROUGH_COLOR,
+                     bordercolor=DARK_BG,
+                     arrowcolor=DARK_FG)
+    style.map("Vertical.TScrollbar",
+              background=[("active", BUTTON_HOVER)])
+
+    style.configure("Horizontal.TScrollbar",
+                     background=BUTTON_BG,
+                     troughcolor=TROUGH_COLOR,
+                     bordercolor=DARK_BG,
+                     arrowcolor=DARK_FG)
+    style.map("Horizontal.TScrollbar",
+              background=[("active", BUTTON_HOVER)])
+
+    # — Spinbox ttk (si utilisé) —
+    style.configure("TSpinbox",
+                     fieldbackground=ENTRY_BG,
+                     foreground=ENTRY_FG,
+                     background=BUTTON_BG,
+                     arrowcolor=DARK_FG,
+                     bordercolor=BORDER_COLOR,
+                     insertcolor=ENTRY_FG)
+
+
+def apply_matplotlib_dark():
+    """Applique un style sombre cohérent à matplotlib."""
+    plt.rcParams.update({
+        "figure.facecolor":  DARK_BG2,
+        "axes.facecolor":    DARK_BG3,
+        "axes.edgecolor":    BORDER_COLOR,
+        "axes.labelcolor":   DARK_FG,
+        "xtick.color":       DARK_FG_DIM,
+        "ytick.color":       DARK_FG_DIM,
+        "text.color":        DARK_FG,
+        "legend.facecolor":  DARK_BG2,
+        "legend.edgecolor":  BORDER_COLOR,
+        "grid.color":        BORDER_COLOR,
+        "grid.alpha":        0.3,
+        "figure.edgecolor":  DARK_BG,
+    })
+# =========UI MODIF FINAL FIN==========
+
 # ===== DÉBUT AJOUT — imports calibration =====
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -142,6 +327,11 @@ class App:
         self.val_masse_st_g = 0.0
         self.val_masse_lt_g = 0.0
 
+        # =========UI MODIF FINAL DEBUT==========
+        apply_dark_theme(self.root)
+        apply_matplotlib_dark()
+        # =========UI MODIF FINAL FIN==========
+
         self.create_widgets()
 
         # ========== Code pour afficher les prints dans l'app DEBUT
@@ -170,7 +360,8 @@ class App:
         self.scroll_container = ttk.Frame(self.left_panel)
         self.scroll_container.pack(fill="both", expand=True)
 
-        self.scroll_canvas = tk.Canvas(self.scroll_container, highlightthickness=0)
+        self.scroll_canvas = tk.Canvas(self.scroll_container, highlightthickness=0,
+                                       bg=DARK_BG)  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
         self.v_scrollbar = ttk.Scrollbar(
             self.scroll_container,
             orient="vertical",
@@ -219,7 +410,8 @@ class App:
         self.port.insert(0, "COM4")
         self.port.pack(side="left", padx=5)
 
-        ttk.Button(conn, text="Connecter", command=self.connect).pack(side="left")
+        ttk.Button(conn, text="Connecter", command=self.connect,
+                   style="Accent.TButton").pack(side="left")  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
 
         # ===== DÉBUT AJOUT — toggle simulation =====
         self.sim_var = tk.BooleanVar(value=False)
@@ -322,9 +514,12 @@ class App:
         # Variable affichage et graphique TonyProtoV2 ===FIN===
 
         # LED de stabilité (à droite)
-        self.canvas = tk.Canvas(row1_measure_frame, width=30, height=30)
+        # =========UI MODIF FINAL DEBUT==========
+        self.canvas = tk.Canvas(row1_measure_frame, width=30, height=30,
+                                bg=DARK_BG, highlightthickness=0)
+        # =========UI MODIF FINAL FIN==========
         self.canvas.pack(side="left", padx=10)
-        self.led = self.canvas.create_oval(3, 3, 25, 25, fill="red")
+        self.led = self.canvas.create_oval(3, 3, 25, 25, fill=RED_LED)  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
 
         # Colonne gauche : Masse temps réel
         rt_frame = ttk.Frame(row1_measure_frame)
@@ -332,13 +527,15 @@ class App:
 
         ttk.Label(rt_frame, text="Masse temps réel :").pack(anchor="w")
         self.masse_rt = tk.StringVar(value="--- g  /  --- kg")
+        # =========UI MODIF FINAL DEBUT==========
         ttk.Label(
             rt_frame,
             textvariable=self.masse_rt,
-            font=("Arial", 12),
+            style="Big.TLabel",
             width=20,
             anchor="w"
         ).pack(anchor="w")
+        # =========UI MODIF FINAL FIN==========
 
         # Colonne Milieu : Masse (stable, après moyennage)
         st_frame = ttk.Frame(row1_measure_frame)
@@ -346,13 +543,15 @@ class App:
 
         ttk.Label(st_frame, text="Masse moyennée :").pack(anchor="w")
         self.masse_stable = tk.StringVar(value="--- g  /  --- kg")
+        # =========UI MODIF FINAL DEBUT==========
         ttk.Label(
             st_frame,
             textvariable=self.masse_stable,
-            font=("Arial", 14, "bold"),
+            style="Big.TLabel",
             width=20,
             anchor="w"
         ).pack(anchor="w")
+        # =========UI MODIF FINAL FIN==========
 
         # Colonne droite : Masse lock après moyennage (stable, après moyennage)
         lt_frame = ttk.Frame(row1_measure_frame)
@@ -360,13 +559,15 @@ class App:
 
         ttk.Label(lt_frame, text="Masse :").pack(anchor="w")
         self.masse_stable_lock = tk.StringVar(value="--- g  /  --- kg")
+        # =========UI MODIF FINAL DEBUT==========
         ttk.Label(
             lt_frame,
             textvariable=self.masse_stable_lock,
-            font=("Arial", 14, "bold"),
+            style="Big.TLabel",
             width=20,
             anchor="w"
         ).pack(anchor="w")
+        # =========UI MODIF FINAL FIN==========
 
         # Variables pour la conversion
         self.cal_dict = masse.load_calibration()
@@ -438,13 +639,31 @@ class App:
             variable=self.console_autoscroll
         ).pack(side="right")
 
+        # =========UI MODIF FINAL DEBUT==========
         self.console = ScrolledText(
             console_frame,
             wrap="word",
             state="disabled",
             font=("Consolas", 9),
-            height=25
+            height=25,
+            bg=CONSOLE_BG,
+            fg=CONSOLE_FG,
+            insertbackground=CONSOLE_FG,
+            selectbackground=SELECT_BG,
+            selectforeground=SELECT_FG,
+            highlightthickness=1,
+            highlightbackground=BORDER_COLOR,
+            highlightcolor=ACCENT,
+            relief="flat",
+            borderwidth=0,
         )
+        # Styliser aussi la scrollbar interne de ScrolledText
+        self.console.vbar.configure(
+            bg=BUTTON_BG, troughcolor=TROUGH_COLOR,
+            activebackground=BUTTON_HOVER, highlightbackground=DARK_BG,
+            borderwidth=0, width=10,
+        )
+        # =========UI MODIF FINAL FIN==========
         self.console.pack(fill="both", expand=True)
 
 
@@ -482,6 +701,12 @@ class App:
         self.cal_num_spin = tk.Spinbox(
             row1, from_=3, to=20, increment=1, width=5,
             textvariable=self.cal_num_masses,
+            # =========UI MODIF FINAL DEBUT==========
+            bg=ENTRY_BG, fg=ENTRY_FG, insertbackground=ENTRY_FG,
+            buttonbackground=BUTTON_BG, highlightbackground=BORDER_COLOR,
+            highlightcolor=ACCENT, selectbackground=SELECT_BG,
+            selectforeground=SELECT_FG, relief="flat", borderwidth=1,
+            # =========UI MODIF FINAL FIN==========
         )
         self.cal_num_spin.pack(side="left", padx=5)
         # Molette de la souris pour incrémenter/décrémenter
@@ -496,6 +721,12 @@ class App:
         self.cal_avg_spin = tk.Spinbox(
             row2, from_=500, to=30000, increment=500, width=7,
             textvariable=self.cal_avg_time,
+            # =========UI MODIF FINAL DEBUT==========
+            bg=ENTRY_BG, fg=ENTRY_FG, insertbackground=ENTRY_FG,
+            buttonbackground=BUTTON_BG, highlightbackground=BORDER_COLOR,
+            highlightcolor=ACCENT, selectbackground=SELECT_BG,
+            selectforeground=SELECT_FG, relief="flat", borderwidth=1,
+            # =========UI MODIF FINAL FIN==========
         )
         self.cal_avg_spin.pack(side="left", padx=5)
         self.cal_avg_spin.bind("<MouseWheel>", self._scroll_avg_time)
@@ -540,6 +771,7 @@ class App:
             btn_row,
             text="Lancer la calibration",
             command=self._launch_calibration,
+            style="Accent.TButton",  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
         ).grid(row=0, column=1, padx=5)
 
         ttk.Button(
@@ -644,6 +876,9 @@ class App:
         self.cal_window.title("Calibration en cours")
         self.cal_window.geometry("400x300")
         self.cal_window.protocol("WM_DELETE_WINDOW", self._cal_stop)
+        # =========UI MODIF FINAL DEBUT==========
+        self.cal_window.configure(bg=DARK_BG)
+        # =========UI MODIF FINAL FIN==========
 
         pad = ttk.Frame(self.cal_window, padding=15)
         pad.pack(fill="both", expand=True)
@@ -653,7 +888,7 @@ class App:
         info.pack(fill="x", pady=5)
 
         ttk.Label(info, text="Masse n° :").pack(side="left")
-        self.cal_mass_label = ttk.Label(info, text="1", font=("Arial", 14, "bold"))
+        self.cal_mass_label = ttk.Label(info, text="1", style="Big.TLabel")  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
         self.cal_mass_label.pack(side="left", padx=5)
 
         total_label = f" / {masse.num_masses}"
@@ -873,7 +1108,9 @@ class App:
             # En-têtes du tableau
             headers = ["#", "Masse (g)", "Tension (V)"]
             for col, h in enumerate(headers):
-                lbl = ttk.Label(self.cal_table_frame, text=h, font=("Arial", 9, "bold"))
+                # =========UI MODIF FINAL DEBUT==========
+                lbl = ttk.Label(self.cal_table_frame, text=h, style="Header.TLabel")
+                # =========UI MODIF FINAL FIN==========
                 lbl.grid(row=0, column=col, padx=4, pady=2)
 
             # Lignes du tableau
@@ -892,13 +1129,20 @@ class App:
             masses_g = [r["masse_g"] for r in results]
 
             # --- Graphique 1 : Courbe de calibration ---
-            fig = Figure(figsize=(3.5, 2.5), dpi=100)
+            # =========UI MODIF FINAL DEBUT==========
+            fig = Figure(figsize=(3.5, 2.5), dpi=100,
+                         facecolor=DARK_BG2, edgecolor=DARK_BG)
             ax = fig.add_subplot(111)
-            ax.plot(tensions, masses_g, "o-", markersize=6)
-            ax.set_xlabel("Tension (V)")
-            ax.set_ylabel("Masse (g)")
-            ax.set_title("Courbe de calibration")
-            ax.grid(True)
+            ax.set_facecolor(DARK_BG3)
+            ax.plot(tensions, masses_g, "o-", markersize=6, color=ACCENT)
+            ax.set_xlabel("Tension (V)", color=DARK_FG)
+            ax.set_ylabel("Masse (g)", color=DARK_FG)
+            ax.set_title("Courbe de calibration", color=DARK_FG)
+            ax.tick_params(colors=DARK_FG_DIM)
+            for spine in ax.spines.values():
+                spine.set_edgecolor(BORDER_COLOR)
+            ax.grid(True, color=BORDER_COLOR, alpha=0.3)
+            # =========UI MODIF FINAL FIN==========
             fig.tight_layout()
 
             if self.save_calib:
@@ -965,8 +1209,12 @@ class App:
         if not cal_dict or len(cal_dict) < 2:
             return
 
-        fig = Figure(figsize=(3.5, 2.5), dpi=100)
+        # =========UI MODIF FINAL DEBUT==========
+        fig = Figure(figsize=(3.5, 2.5), dpi=100,
+                     facecolor=DARK_BG2, edgecolor=DARK_BG)
         ax = fig.add_subplot(111)
+        ax.set_facecolor(DARK_BG3)
+        # =========UI MODIF FINAL FIN==========
 
         models = [
             ("affine",    self._res_show_affine,    "o-",  "Affine"),
@@ -988,13 +1236,19 @@ class App:
             ax.plot(tensions, residuals, style, label=label, markersize=5)
 
         # Ligne de référence à 0
-        ax.axhline(y=0, color="gray", linewidth=0.8, linestyle="-")
+        # =========UI MODIF FINAL DEBUT==========
+        ax.axhline(y=0, color=DARK_FG_DIM, linewidth=0.8, linestyle="-")
 
-        ax.set_xlabel("Tension (V)")
-        ax.set_ylabel("Résidu (g)")
-        ax.set_title("Résidus : m_réel − m_estimé")
-        ax.legend(fontsize=8)
-        ax.grid(True, alpha=0.3)
+        ax.set_xlabel("Tension (V)", color=DARK_FG)
+        ax.set_ylabel("Résidu (g)", color=DARK_FG)
+        ax.set_title("Résidus : m_réel − m_estimé", color=DARK_FG)
+        ax.legend(fontsize=8, facecolor=DARK_BG2, edgecolor=BORDER_COLOR,
+                  labelcolor=DARK_FG)
+        ax.tick_params(colors=DARK_FG_DIM)
+        for spine in ax.spines.values():
+            spine.set_edgecolor(BORDER_COLOR)
+        ax.grid(True, color=BORDER_COLOR, alpha=0.3)
+        # =========UI MODIF FINAL FIN==========
         fig.tight_layout()
 
         canvas = FigureCanvasTkAgg(fig, master=self._res_canvas_frame)
@@ -1254,7 +1508,7 @@ class App:
             if len(self.stab_buffer) < self.stab_buffer.maxlen:
                 self.stable = False
                 self.stable_since = None
-                self.canvas.itemconfig(self.led, fill="orange")
+                self.canvas.itemconfig(self.led, fill=ORANGE_LED)  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
             else:
                 values = list(self.stab_buffer)
                 span = max(values) - min(values)
@@ -1293,11 +1547,11 @@ class App:
                             self.pos_count = 0
                                 
                             self.send_masse_stable(True)
-                            self.canvas.itemconfig(self.led, fill="green")
+                            self.canvas.itemconfig(self.led, fill=GREEN_LED)  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
                     else:
                         self.stable = False
                         self.send_masse_stable(False)
-                        self.canvas.itemconfig(self.led, fill="orange")
+                        self.canvas.itemconfig(self.led, fill=ORANGE_LED)  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
                 else:
                     # On repasse en ROUGE si le courant bouge trop OU si on quitte la zone de position
                     if span > (self.span_threshold * 1.5) or not pos_ok:
@@ -1308,7 +1562,7 @@ class App:
                         self.tare_btn.config(state="disabled")
                         self.masse_lock_flag = True
                         self.send_masse_stable(False)
-                        self.canvas.itemconfig(self.led, fill="red")
+                        self.canvas.itemconfig(self.led, fill=RED_LED)  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
                         self.masse_stable_lock.set("--- g  /  --- kg")
                         self.pos_somme = 0
                         self.pos_count = 0
@@ -1425,9 +1679,9 @@ class App:
         """Met à jour l'interface depuis le thread principal (thread-safe)."""
         # ===== DÉBUT MODIFICATION — affichage géré par _update_masse_display =====
         if flag:
-            self.canvas.itemconfig(self.led, fill="green")
+            self.canvas.itemconfig(self.led, fill=GREEN_LED)  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
         else:
-            self.canvas.itemconfig(self.led, fill="red")
+            self.canvas.itemconfig(self.led, fill=RED_LED)  # =========UI MODIF FINAL DEBUT========== / =========UI MODIF FINAL FIN==========
         # ===== FIN MODIFICATION =====
 
     # ===== FIN AJOUT — simulation Arduino =====
@@ -1682,35 +1936,55 @@ class App:
             self.plot_window.title("Oscilloscope")
             self.plot_window.geometry("1200x800")
             self.plot_window.protocol("WM_DELETE_WINDOW", self._close_plot)
+            # =========UI MODIF FINAL DEBUT==========
+            self.plot_window.configure(bg=DARK_BG)
+            # =========UI MODIF FINAL FIN==========
 
             self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(14, 9), constrained_layout=True)
-            self.fig.suptitle("Équipe 1", fontsize=20)
+            # =========UI MODIF FINAL DEBUT==========
+            self.fig.patch.set_facecolor(DARK_BG2)
+            self.fig.suptitle("Équipe 1", fontsize=20, color=DARK_FG)
+            # =========UI MODIF FINAL FIN==========
 
             self.plot_t0 = time.time()
 
-            self.line_cur, = self.ax1.plot([], [], color="red", alpha=1, linewidth=2, label="Courant mesuré")
-            self.line_pos, = self.ax1.plot([], [], color="blue", alpha=1, linewidth=2, label="Position mesurée")
-            self.ax1.set_title("Mesures en temps réel", fontsize=16)
-            self.ax1.set_xlabel("Temps (s)", fontsize=12)
-            self.ax1.set_ylabel("Valeur (bit ADC)", fontsize=12)
-            self.ax1.legend(fontsize=10)
-            self.ax1.grid(True)
+            # =========UI MODIF FINAL DEBUT==========
+            self.line_cur, = self.ax1.plot([], [], color="#f38ba8", alpha=1, linewidth=2, label="Courant mesuré")
+            self.line_pos, = self.ax1.plot([], [], color="#89b4fa", alpha=1, linewidth=2, label="Position mesurée")
+            self.ax1.set_facecolor(DARK_BG3)
+            self.ax1.set_title("Mesures en temps réel", fontsize=16, color=DARK_FG)
+            self.ax1.set_xlabel("Temps (s)", fontsize=12, color=DARK_FG)
+            self.ax1.set_ylabel("Valeur (bit ADC)", fontsize=12, color=DARK_FG)
+            self.ax1.tick_params(colors=DARK_FG_DIM)
+            for spine in self.ax1.spines.values():
+                spine.set_edgecolor(BORDER_COLOR)
+            self.ax1.legend(fontsize=10, facecolor=DARK_BG2, edgecolor=BORDER_COLOR, labelcolor=DARK_FG)
+            self.ax1.grid(True, color=BORDER_COLOR, alpha=0.3)
 
-            self.line_cmd_pos, = self.ax2.plot([], [], color="green", alpha=1, linewidth=2, label="Commande position")
-            self.line_cmd_cur, = self.ax2.plot([], [], color="orange", alpha=1, linewidth=2, label="Commande courant")
-            self.ax2.set_title("Commandes en temps réel", fontsize=16)
-            self.ax2.set_xlabel("Temps (s)", fontsize=12)
-            self.ax2.set_ylabel("Valeur (bit ADC)", fontsize=12)
-            self.ax2.legend(fontsize=10)
-            self.ax2.grid(True)
+            self.line_cmd_pos, = self.ax2.plot([], [], color="#a6e3a1", alpha=1, linewidth=2, label="Commande position")
+            self.line_cmd_cur, = self.ax2.plot([], [], color="#fab387", alpha=1, linewidth=2, label="Commande courant")
+            self.ax2.set_facecolor(DARK_BG3)
+            self.ax2.set_title("Commandes en temps réel", fontsize=16, color=DARK_FG)
+            self.ax2.set_xlabel("Temps (s)", fontsize=12, color=DARK_FG)
+            self.ax2.set_ylabel("Valeur (bit ADC)", fontsize=12, color=DARK_FG)
+            self.ax2.tick_params(colors=DARK_FG_DIM)
+            for spine in self.ax2.spines.values():
+                spine.set_edgecolor(BORDER_COLOR)
+            self.ax2.legend(fontsize=10, facecolor=DARK_BG2, edgecolor=BORDER_COLOR, labelcolor=DARK_FG)
+            self.ax2.grid(True, color=BORDER_COLOR, alpha=0.3)
 
-            self.line_mass_rt, = self.ax3.plot([], [], color="purple", alpha=1, linewidth=2, label="Temps réel")
-            self.line_mass_stable, = self.ax3.plot([], [], color="black", alpha=1, linewidth=2, label="Asservie et moyennée")
-            self.ax3.set_title("Masse mesurée", fontsize=16)
-            self.ax3.set_xlabel("Temps (s)", fontsize=12)
-            self.ax3.set_ylabel("Masse (g)", fontsize=12)
-            self.ax3.legend(fontsize=10)
-            self.ax3.grid(True)
+            self.line_mass_rt, = self.ax3.plot([], [], color="#cba6f7", alpha=1, linewidth=2, label="Temps réel")
+            self.line_mass_stable, = self.ax3.plot([], [], color="#f5e0dc", alpha=1, linewidth=2, label="Asservie et moyennée")
+            self.ax3.set_facecolor(DARK_BG3)
+            self.ax3.set_title("Masse mesurée", fontsize=16, color=DARK_FG)
+            self.ax3.set_xlabel("Temps (s)", fontsize=12, color=DARK_FG)
+            self.ax3.set_ylabel("Masse (g)", fontsize=12, color=DARK_FG)
+            self.ax3.tick_params(colors=DARK_FG_DIM)
+            for spine in self.ax3.spines.values():
+                spine.set_edgecolor(BORDER_COLOR)
+            self.ax3.legend(fontsize=10, facecolor=DARK_BG2, edgecolor=BORDER_COLOR, labelcolor=DARK_FG)
+            self.ax3.grid(True, color=BORDER_COLOR, alpha=0.3)
+            # =========UI MODIF FINAL FIN==========
 
             # Embarquer dans le Toplevel tkinter
             self.plot_canvas = FigureCanvasTkAgg(self.fig, master=self.plot_window)
