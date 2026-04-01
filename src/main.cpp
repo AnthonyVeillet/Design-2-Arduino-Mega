@@ -4,6 +4,7 @@
 #include "asservissement.h"
 
 const int ledPin = 13; // LED intégrée
+const int massePin = 2;
 
 uint16_t positionVal = 0;
 uint16_t courantVal = 0;
@@ -91,6 +92,13 @@ void loop()
       Serial.readBytes((char *)&kp, 4);
       Serial.readBytes((char *)&ki, 4);
       initCoeffsPI_Courant(kp, ki);
+    }
+    else if (cmd == 'M')
+    {
+      while (Serial.available() < 1)
+        ;
+      bool masseStable = Serial.read(); // true ou false
+      digitalWrite(massePin, masseStable);
     }
   }
 

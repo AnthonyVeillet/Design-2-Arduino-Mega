@@ -1230,9 +1230,11 @@ class App:
                             self.pos_somme = 0
                             self.pos_count = 0
                                 
+                            self.send_masse_stable(True)
                             self.canvas.itemconfig(self.led, fill="green")
                     else:
                         self.stable = False
+                        self.send_masse_stable(False)
                         self.canvas.itemconfig(self.led, fill="orange")
                 else:
                     # On repasse en ROUGE si le courant bouge trop OU si on quitte la zone de position
@@ -1243,6 +1245,7 @@ class App:
                         self.stable_since = None
                         self.tare_btn.config(state="disabled")
                         self.masse_lock_flag = True
+                        self.send_masse_stable(False)
                         self.canvas.itemconfig(self.led, fill="red")
                         self.masse_stable_lock.set("--- g  /  --- kg")
                         self.pos_somme = 0
@@ -1426,6 +1429,11 @@ class App:
                                     float(self.ki_c.get())
                                     ))
         print(f"Régulateur de courant appliqué P = {self.kp_c.get()} | I = {self.ki_c.get()}")
+    
+    def send_masse_stable(self, isMasseStable):
+        val = 1 if isMasseStable else 0
+        self.send(b'M' + bytes([val]))
+
 
     # ===== DÉBUT MODIFICATION — tare basée sur la masse =====
     def tare(self):
