@@ -18,28 +18,28 @@ import sys
 from tkinter.scrolledtext import ScrolledText
 
 # =========UI MODIF FINAL DEBUT==========
-# — Constantes du thème sombre —
-DARK_BG       = "#1e1e2e"    # Fond principal
-DARK_BG2      = "#252536"    # Fond secondaire (frames, entries)
-DARK_BG3      = "#2e2e42"    # Fond tertiaire (hover / séparations)
-DARK_FG       = "#cdd6f4"    # Texte principal
-DARK_FG_DIM   = "#a6adc8"    # Texte secondaire
-ACCENT        = "#89b4fa"    # Bleu accent
-ACCENT_HOVER  = "#74c7ec"    # Bleu accent hover
-GREEN_LED     = "#a6e3a1"    # LED verte
-ORANGE_LED    = "#fab387"    # LED orange
-RED_LED       = "#f38ba8"    # LED rouge
-ENTRY_BG      = "#313244"    # Fond des champs de saisie
-ENTRY_FG      = "#cdd6f4"    # Texte des champs
-BORDER_COLOR  = "#45475a"    # Bordures
-BUTTON_BG     = "#45475a"    # Fond boutons
-BUTTON_FG     = "#cdd6f4"    # Texte boutons
-BUTTON_HOVER  = "#585b70"    # Hover boutons
-CONSOLE_BG    = "#181825"    # Fond console
-CONSOLE_FG    = "#a6e3a1"    # Texte console (vert terminal)
-TROUGH_COLOR  = "#313244"    # Fond scrollbar
-SELECT_BG     = "#585b70"    # Sélection fond
-SELECT_FG     = "#cdd6f4"    # Sélection texte
+# — Constantes du thème sombre (VS Code Dark+) —
+DARK_BG       = "#1e1e1e"    # Fond principal (editor.background)
+DARK_BG2      = "#252526"    # Fond secondaire (sideBar.background)
+DARK_BG3      = "#2d2d2d"    # Fond tertiaire (editorWidget.background)
+DARK_FG       = "#d4d4d4"    # Texte principal (editor.foreground)
+DARK_FG_DIM   = "#858585"    # Texte secondaire (commentaires)
+ACCENT        = "#569cd6"    # Bleu VS Code (mots-clés)
+ACCENT_HOVER  = "#4fc1ff"    # Bleu clair hover
+GREEN_LED     = "#6a9955"    # Vert VS Code (commentaires/succès)
+ORANGE_LED    = "#ce9178"    # Orange VS Code (strings)
+RED_LED       = "#f44747"    # Rouge VS Code (erreurs)
+ENTRY_BG      = "#3c3c3c"    # Fond champs (input.background)
+ENTRY_FG      = "#d4d4d4"    # Texte champs
+BORDER_COLOR  = "#474747"    # Bordures (panel.border)
+BUTTON_BG     = "#3c3c3c"    # Fond boutons (button.background)
+BUTTON_FG     = "#d4d4d4"    # Texte boutons
+BUTTON_HOVER  = "#505050"    # Hover boutons
+CONSOLE_BG    = "#1e1e1e"    # Fond console (terminal.background)
+CONSOLE_FG    = "#4ec9b0"    # Texte console (turquoise, comme les types)
+TROUGH_COLOR  = "#2d2d2d"    # Fond scrollbar
+SELECT_BG     = "#264f78"    # Sélection fond (editor.selectionBackground)
+SELECT_FG     = "#d4d4d4"    # Sélection texte
 
 
 def apply_dark_theme(root):
@@ -336,6 +336,8 @@ class App:
 
         # ========== Code pour afficher les prints dans l'app DEBUT
         sys.stdout = TextRedirector(self)
+        self._stderr = sys.stderr
+        sys.stderr = TextRedirector(self, tag="stderr")
         self._append_console("Console intégrée prête.\n")
         # ========== Code pour afficher les prints dans l'app FIN
 
@@ -665,6 +667,7 @@ class App:
         )
         # =========UI MODIF FINAL FIN==========
         self.console.pack(fill="both", expand=True)
+        self.console.tag_config("stderr", foreground="#f44747") # Ajout print erreur CONSOLE
 
 
     def _append_console(self, text, tag=None):
@@ -2084,6 +2087,7 @@ class App:
         # ========== Code pour afficher les prints dans l'app DEBUT
         try:
             sys.stdout = self._stdout
+            sys.stderr = self._stderr
         except Exception:
             pass
         # ========== Code pour afficher les prints dans l'app FIN
