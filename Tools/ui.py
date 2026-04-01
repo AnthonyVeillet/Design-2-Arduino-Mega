@@ -1031,13 +1031,14 @@ class App:
         if self.cal_dict and len(self.cal_dict) >= 2:
             self.val_masse_rt_g = masse.convert_masse(cur, self.cal_dict, self.cal_model)
             self.val_masse_rt_g -= self.tare_masse
-            if self.val_masse_rt_g < 0.8:
-                if self.val_masse_rt_g < 0.3:
-                    self.val_masse_rt_g = 0.0
-                elif self.val_masse_rt_g < 0.4:
-                    self.val_masse_rt_g = 0.1
-                elif self.val_masse_rt_g < 0.6:
-                    self.val_masse_rt_g = 0.3
+            if self.val_masse_rt_g > -0.9:
+                if self.val_masse_rt_g < 0.8:
+                    if self.val_masse_rt_g < 0.3:
+                        self.val_masse_rt_g = 0.0
+                    elif self.val_masse_rt_g < 0.4:
+                        self.val_masse_rt_g = 0.1
+                    elif self.val_masse_rt_g < 0.6:
+                        self.val_masse_rt_g = 0.3
             self.masse_rt.set(self._format_masse(self.val_masse_rt_g))
         else:
             raw = cur - self.offset
@@ -1048,13 +1049,14 @@ class App:
             if self.cal_dict and len(self.cal_dict) >= 2:
                 self.val_masse_st_g = masse.convert_masse(self.avgCourantStable_value, self.cal_dict, self.cal_model)
                 self.val_masse_st_g -= self.tare_masse
-                if self.val_masse_st_g < 0.8:
-                    if self.val_masse_st_g > 0.4:
-                        self.print_tare = False
-                        self.tare()
-                        self.print_tare = True
-                    if self.val_masse_st_g < 0.2:
-                        self.val_masse_st_g = 0.0
+                if self.val_masse_st_g > -0.9:
+                    if self.val_masse_st_g < 0.8:
+                        if self.val_masse_st_g > 0.4:
+                            self.print_tare = False
+                            self.tare()
+                            self.print_tare = True
+                        if self.val_masse_st_g < 0.2:
+                            self.val_masse_st_g = 0.0
                 self.masse_stable.set(self._format_masse(self.val_masse_st_g))
             else:
                 raw = int(self.avgCourantStable_value - self.offset)
@@ -1067,8 +1069,9 @@ class App:
             if self.cal_dict and len(self.cal_dict) >= 2:
                 self.val_masse_lt_g = masse.convert_masse(self.avg_value_lock, self.cal_dict, self.cal_model)
                 self.val_masse_lt_g -= self.tare_masse
-                if self.val_masse_lt_g < 0.3:
-                    self.val_masse_lt_g = 0.0
+                if self.val_masse_lt_g > -0.9:
+                    if self.val_masse_lt_g < 0.3:
+                        self.val_masse_lt_g = 0.0
                 self.masse_stable_lock.set(self._format_masse(self.val_masse_lt_g))
             else:
                 raw = int(self.avg_value_lock - self.offset)
