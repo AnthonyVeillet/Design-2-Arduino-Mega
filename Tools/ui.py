@@ -133,6 +133,8 @@ class App:
         self.box_PLOT_WINDOW_SECONDS = None
         self.refresh_graph = 1000 # Temps de refresh des données des graphique en ms
         self.box_refresh_graph = None
+        self.pos_ref = 300
+        self.box_pos_ref = None
         # Variable affichage et graphique TonyProtoV2 ===FIN===
 
         # Variable de masse pour graphique
@@ -249,11 +251,10 @@ class App:
         ref_frame = ttk.LabelFrame(main, text="Position de référence", padding=10)
         ref_frame.pack(fill="x", pady=5)
 
-        self.pos_ref = ttk.Entry(ref_frame, width=10)
-        self.pos_ref.insert(0, "300")
-        self.pos_ref.pack(side="left", padx=5)
-
-        ttk.Button(ref_frame, text="Envoyer", command=self.send_ref).pack(side="left")
+        self.box_pos_ref = ttk.Entry(ref_frame, width=10)
+        self.box_pos_ref.insert(0, str(self.pos_ref))
+        self.box_pos_ref.pack(side="left", padx=5)
+        ttk.Button(ref_frame, text="Envoyer (bit)", command=self.send_ref).pack(side="left")
 
         pid_frame = ttk.LabelFrame(main, text="Régulateurs", padding=10)
         pid_frame.pack(fill="x", pady=5)
@@ -1242,7 +1243,7 @@ class App:
             pos_avg = self.pos_somme / self.pos_count
 
             try:
-                current_pos_ref = float(self.pos_ref.get())
+                current_pos_ref = float(self.pos_ref)
             except ValueError:
                 current_pos_ref = 0.0 # Sécurité si le champ est vide
 
@@ -1470,8 +1471,9 @@ class App:
     # ===== FIN AJOUT — interprétation commandes en simulation =====
 
     def send_ref(self):
-        self.send(b'R' + struct.pack('<H', int(self.pos_ref.get())))
-        print(f"Position de référence set à {self.pos_ref.get()}")
+        self.pos_ref = int(self.box_pos_ref.get())
+        self.send(b'R' + struct.pack('<H', self.pos_ref))
+        print(f"Position de référence set à {self.pos_ref} bits")
 
     def send_pid_pos(self):
         self.send(b'G' + struct.pack(
