@@ -1028,7 +1028,7 @@ class App:
             if self.cal_dict and len(self.cal_dict) >= 2:
                 self.val_masse_lt_g = masse.convert_masse(self.avg_value_lock, self.cal_dict, self.cal_model)
                 self.val_masse_lt_g -= self.tare_masse
-                if self.val_masse_lt_g < 0.5:
+                if self.val_masse_lt_g < 1.0:
                     self.val_masse_lt_g = 0.0
                 self.masse_stable_lock.set(self._format_masse(self.val_masse_lt_g))
             else:
@@ -1474,6 +1474,7 @@ class App:
             self.tare_masse = 0.0
     # ===== FIN MODIFICATION — tare basée sur la masse =====
 
+    """MODIF FINAL CLAUDE
     # ================= START / STOP =================
     def start(self):
         print(f"Start oscilloscope avec fenêtre de {self.PLOT_WINDOW_SECONDS} secondes")
@@ -1497,6 +1498,26 @@ class App:
         self.plot_running = False
         self.send(b'E')
         self.send(b'P' + bytes([50]))
+    """
+
+    def start(self):
+        print(f"Start oscilloscope avec fenêtre de {self.PLOT_WINDOW_SECONDS} secondes")
+        self.running = True
+        self.data.clear()
+
+        if self.mode.get() == "identification":
+            pwm = int(self.pwm_entry.get())
+            self.send(b'I')
+            self.send(b'P' + bytes([pwm]))
+
+        self.send(b'S')
+        self.start_plot()
+
+    def stop(self):
+        print("Stop oscilloscope")
+        self.running = False
+        self.plot_running = False
+        self.send(b'E')
 
     # ================= IDENTIFICATION =================
     def run_identification(self):
