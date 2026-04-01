@@ -1108,9 +1108,9 @@ class App:
     def connect(self):
         print(f"Connection série au port {self.port.get()}")
 
-        self.send_ref()
-        self.send_pid_pos()
-        self.send_pid_cur()
+        #self.send_ref()
+        #self.send_pid_pos()
+        #self.send_pid_cur()
 
         # ===== DÉBUT AJOUT — connexion en mode simulation =====
         if self.sim_var.get():
@@ -1140,6 +1140,11 @@ class App:
         get_courant_fn=lambda: self.last_courant,
         get_flag_fn=lambda: self.stable,
         )
+
+        self.send_ref()
+        self.send_pid_pos()
+        self.send_pid_cur()
+        #self.tare()
         # ===== FIN AJOUT =====
 
     def reader(self):
@@ -1202,7 +1207,7 @@ class App:
                 stable_now = (span <= self.span_threshold) and (std_dev <= self.std_threshold) and pos_ok
 
                 if stable_now:
-                    print("Lame stabilisée")
+                    #print("Lame stabilisée")
                     if self.stable_since is None:
                         self.stable_since = now
                         self.resetMoyennageCourant()
@@ -1239,7 +1244,7 @@ class App:
                 else:
                     # On repasse en ROUGE si le courant bouge trop OU si on quitte la zone de position
                     if span > (self.span_threshold * 1.5) or not pos_ok:
-                        print("Lame non-stabilisée")
+                        #print("Lame non-stabilisée")
                         self.resetMoyennageCourant()
                         self.stable = False
                         self.stable_since = None
@@ -1440,14 +1445,14 @@ class App:
         #self.offset = self.avg_value
         #self.offset = self.avgCourantStable_value
         self.offset = self.last_courant
-        print(f"Tare avec {self.offset:.1f}")
+        print(f"Tare avec {self.offset:.1f} bit")
         self.masse_stable_lock.set("0.0 g  /  0.0 kg")
         # Si calibration disponible, stocker la masse actuelle comme tare
         if self.cal_dict and len(self.cal_dict) >= 2:
             self.tare_masse = masse.convert_masse(
                 self.last_courant, self.cal_dict, self.cal_model
             )
-            print(f"Tare avec {self.tare_masse}")
+            print(f"Tare avec {self.tare_masse} gramme")
         else:
             self.tare_masse = 0.0
     # ===== FIN MODIFICATION — tare basée sur la masse =====
@@ -1582,7 +1587,9 @@ class App:
             plt.close(self.fig)
 
         #MODIF 1 self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1)
-        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(14, 9), constrained_layout=True)
+        #self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(14, 9), constrained_layout=True)
+        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(14, 9))
+        self.fig.subplots_adjust(top=0.92, bottom=0.07, left=0.08, right=0.98, hspace=0.55)
         self.fig.suptitle("Équipe 1", fontsize=20)
 
         # Temps de départ du graphique
@@ -1648,15 +1655,16 @@ class App:
             # On garde seulement les points visibles dans la fenêtre
             self.data = [d for d in self.data if (d[0] - self.plot_t0) >= x_min]
 
-            if len(self.data) > 0:
-                #print(f"Plot update: {len(self.data)} points")
-                t = [d[0] - self.plot_t0 for d in self.data]
-                pos = [d[1] for d in self.data]
-                cur = [d[2] for d in self.data]
-                cmd_pos = [d[3] for d in self.data]
-                cmd_cur = [d[4] for d in self.data]
-                mass_rt = [d[5] for d in self.data]
-                mass_stable = [d[6] for d in self.data]
+            plot_data = list(self.data)
+
+            if len(plot_data) > 0:
+                t = [d[0] - self.plot_t0 for d in plot_data]
+                pos = [d[1] for d in plot_data]
+                cur = [d[2] for d in plot_data]
+                cmd_pos = [d[3] for d in plot_data]
+                cmd_cur = [d[4] for d in plot_data]
+                mass_rt = [d[5] for d in plot_data]
+                mass_stable = [d[6] for d in plot_data]
 
                 self.line_cur.set_data(t, cur)
                 self.line_pos.set_data(t, pos)
@@ -1680,11 +1688,12 @@ class App:
 
                 self.fig.canvas.draw_idle()
 
-        self.root.after(50, self.update_plot)
+        #self.root.after(self.masseRT_affichage, self.update_plot)
+        self.root.after(1000, self.update_plot)
 
     def update_affichage_masseRT(self):
         self.masseRT_affichage = int(self.box_masseRT_affichage.get())
-        print(f"Fréquence d'affichage des masses set à {self.masseRT_affichage} ms")
+        print(f"Refresh rate des masses et des graphiques set à {self.masseRT_affichage} ms")
 
 
     def update_temps_graph(self):
