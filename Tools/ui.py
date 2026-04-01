@@ -29,6 +29,8 @@ import math
 # ===== FIN AJOUT — imports simulation =====
 
 BAUDRATE = 115200
+BASE_DIR = Path(__file__).resolve().parent
+CALIBRATION_DIR = BASE_DIR / "dataCalibration"
 
 # ========== Code pour afficher les prints dans l'app DEBUT
 class TextRedirector:
@@ -103,6 +105,8 @@ class App:
         self.avg_value_lock = None
         self.stable = False
         self.stable_since = None
+        self.print_tare = True
+        self.save_calib = True
 
         self.stab_buffer = deque(maxlen=150)
         self.span_threshold = 6.0
@@ -254,11 +258,17 @@ class App:
         pid_frame = ttk.LabelFrame(main, text="Régulateurs", padding=10)
         pid_frame.pack(fill="x", pady=5)
 
-        ttk.Label(pid_frame, text="Position (Kp Ki Kd)").grid(row=0, column=0)
+        row1_pid_frame = ttk.Frame(pid_frame)
+        row1_pid_frame.pack(fill="x", pady=5)
 
-        self.kp = ttk.Entry(pid_frame, width=10)
-        self.ki = ttk.Entry(pid_frame, width=10)
-        self.kd = ttk.Entry(pid_frame, width=10)
+        row2_pid_frame = ttk.Frame(pid_frame)
+        row2_pid_frame.pack(fill="x", pady=5)
+
+        ttk.Label(row1_pid_frame, text="Position (Kp Ki Kd)").grid(row=0, column=0)
+
+        self.kp = ttk.Entry(row1_pid_frame, width=10)
+        self.ki = ttk.Entry(row1_pid_frame, width=10)
+        self.kd = ttk.Entry(row1_pid_frame, width=10)
 
         self.kp.insert(0, "0.12")
         self.ki.insert(0, "12")
@@ -268,12 +278,12 @@ class App:
         self.ki.grid(row=0, column=2)
         self.kd.grid(row=0, column=3)
 
-        ttk.Button(pid_frame, text="Appliquer", command=self.send_pid_pos).grid(row=0, column=4)
+        ttk.Button(row1_pid_frame, text="Appliquer", command=self.send_pid_pos).grid(row=0, column=4)
 
-        ttk.Label(pid_frame, text="Courant (Kp Ki)").grid(row=1, column=0)
+        ttk.Label(row1_pid_frame, text="Courant (Kp Ki)").grid(row=1, column=0)
 
-        self.kp_c = ttk.Entry(pid_frame, width=10)
-        self.ki_c = ttk.Entry(pid_frame, width=10)
+        self.kp_c = ttk.Entry(row1_pid_frame, width=10)
+        self.ki_c = ttk.Entry(row1_pid_frame, width=10)
 
         self.kp_c.insert(0, "0.4")
         self.ki_c.insert(0, "165")
@@ -281,7 +291,19 @@ class App:
         self.kp_c.grid(row=1, column=1)
         self.ki_c.grid(row=1, column=2)
 
-        ttk.Button(pid_frame, text="Appliquer", command=self.send_pid_cur).grid(row=1, column=4)
+        ttk.Button(row1_pid_frame, text="Appliquer", command=self.send_pid_cur).grid(row=1, column=4)
+
+        ttk.Button(
+                    row2_pid_frame,
+                    text="Start",
+                    command=lambda: (self.send_pid_cur(), self.send_pid_pos())
+                    ).grid(row=1, column=0)
+        
+        ttk.Button(
+                    row2_pid_frame,
+                    text="Stop",
+                    command=self.stop_pid
+                    ).grid(row=1, column=1)
 
         # ===== DÉBUT MODIFICATION — affichage Masse temps réel + Masse stable =====
         measure_frame = ttk.LabelFrame(main, text=f"Mesure (Affichage à chaque {self.masseRT_affichage} ms)", padding=10)
@@ -582,6 +604,7 @@ class App:
 
     def _launch_calibration(self):
         """Ouvre la fenêtre de calibration et démarre le processus."""
+        self.save_calib = True
         print("Début calibration")
         if not self.ser and not self.sim_mode:
             messagebox.showerror("Erreur", "Pas connecté au port série.")
@@ -810,6 +833,7 @@ class App:
 
     def _cal_recalcul_resultat(self):
         """Bouton pour recalculer les résultats d'une calibration déjà existante"""
+        self.save_calib = False
         print("Recalcul des résultats")
         self.cal_dict = masse.load_calibration()
 
@@ -831,95 +855,99 @@ class App:
         self._display_calibration_results()
 
     def _display_calibration_results(self):
-        """
-        Affiche les résultats dans la section Calibration de la fenêtre principale :
-        tableau (numéro, masse, tension) + graphique calibration + graphique résidus.
-        """
-        results = masse.get_valid_results()
-        if not results:
-            return
+            """
+            Affiche les résultats dans la section Calibration de la fenêtre principale :
+            tableau (numéro, masse, tension) + graphique calibration + graphique résidus.
+            """
+            results = masse.get_valid_results()
+            if not results:
+                return
 
-        # Vider l'ancien contenu
-        for w in self.cal_table_frame.winfo_children():
-            w.destroy()
-        for w in self.cal_graph_frame.winfo_children():
-            w.destroy()
+            # Vider l'ancien contenu
+            for w in self.cal_table_frame.winfo_children():
+                w.destroy()
+            for w in self.cal_graph_frame.winfo_children():
+                w.destroy()
 
-        # En-têtes du tableau
-        headers = ["#", "Masse (g)", "Tension (V)"]
-        for col, h in enumerate(headers):
-            lbl = ttk.Label(self.cal_table_frame, text=h, font=("Arial", 9, "bold"))
-            lbl.grid(row=0, column=col, padx=4, pady=2)
+            # En-têtes du tableau
+            headers = ["#", "Masse (g)", "Tension (V)"]
+            for col, h in enumerate(headers):
+                lbl = ttk.Label(self.cal_table_frame, text=h, font=("Arial", 9, "bold"))
+                lbl.grid(row=0, column=col, padx=4, pady=2)
 
-        # Lignes du tableau
-        for i, r in enumerate(results):
-            ttk.Label(self.cal_table_frame, text=str(r["numero"])).grid(
-                row=i + 1, column=0, padx=4, pady=1,
+            # Lignes du tableau
+            for i, r in enumerate(results):
+                ttk.Label(self.cal_table_frame, text=str(r["numero"])).grid(
+                    row=i + 1, column=0, padx=4, pady=1,
+                )
+                ttk.Label(self.cal_table_frame, text=f"{r['masse_g']:.2f}").grid(
+                    row=i + 1, column=1, padx=4, pady=1,
+                )
+                ttk.Label(self.cal_table_frame, text=f"{r['tension_v']:.4f}").grid(
+                    row=i + 1, column=2, padx=4, pady=1,
+                )
+
+            tensions = [r["tension_v"] for r in results]
+            masses_g = [r["masse_g"] for r in results]
+
+            # --- Graphique 1 : Courbe de calibration ---
+            fig = Figure(figsize=(3.5, 2.5), dpi=100)
+            ax = fig.add_subplot(111)
+            ax.plot(tensions, masses_g, "o-", markersize=6)
+            ax.set_xlabel("Tension (V)")
+            ax.set_ylabel("Masse (g)")
+            ax.set_title("Courbe de calibration")
+            ax.grid(True)
+            fig.tight_layout()
+
+            if self.save_calib:
+                fig.savefig(CALIBRATION_DIR / "courbe_calibration.png", dpi=150)
+                print("Graphique de calibration enregistré dans dataCalibration/courbe_calibration.png")
+
+            canvas = FigureCanvasTkAgg(fig, master=self.cal_graph_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill="both", expand=True)
+
+            # ===== DÉBUT AJOUT — graphique des résidus =====
+
+            # Frame pour le graphique des résidus + checkboxes
+            residual_frame = ttk.LabelFrame(
+                self.cal_graph_frame, text="Analyse des résidus", padding=5,
             )
-            ttk.Label(self.cal_table_frame, text=f"{r['masse_g']:.2f}").grid(
-                row=i + 1, column=1, padx=4, pady=1,
-            )
-            ttk.Label(self.cal_table_frame, text=f"{r['tension_v']:.4f}").grid(
-                row=i + 1, column=2, padx=4, pady=1,
-            )
+            residual_frame.pack(fill="both", expand=True, pady=5)
 
-        tensions = [r["tension_v"] for r in results]
-        masses_g = [r["masse_g"] for r in results]
+            # Checkboxes pour afficher/cacher chaque modèle
+            cb_frame = ttk.Frame(residual_frame)
+            cb_frame.pack(fill="x")
 
-        # --- Graphique 1 : Courbe de calibration ---
-        fig = Figure(figsize=(3.5, 2.5), dpi=100)
-        ax = fig.add_subplot(111)
-        ax.plot(tensions, masses_g, "o-", markersize=6)
-        ax.set_xlabel("Tension (V)")
-        ax.set_ylabel("Masse (g)")
-        ax.set_title("Courbe de calibration")
-        ax.grid(True)
-        fig.tight_layout()
+            self._res_show_affine = tk.BooleanVar(value=True)
+            self._res_show_quadratic = tk.BooleanVar(value=True)
+            self._res_show_piecewise = tk.BooleanVar(value=True)
 
-        canvas = FigureCanvasTkAgg(fig, master=self.cal_graph_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill="both", expand=True)
+            ttk.Checkbutton(
+                cb_frame, text="Affine", variable=self._res_show_affine,
+                command=self._redraw_residuals,
+            ).pack(side="left", padx=5)
+            ttk.Checkbutton(
+                cb_frame, text="Quadratique", variable=self._res_show_quadratic,
+                command=self._redraw_residuals,
+            ).pack(side="left", padx=5)
+            ttk.Checkbutton(
+                cb_frame, text="Par morceaux", variable=self._res_show_piecewise,
+                command=self._redraw_residuals,
+            ).pack(side="left", padx=5)
 
-        # ===== DÉBUT AJOUT — graphique des résidus =====
+            # Frame pour le canvas du graphique résidus
+            self._res_canvas_frame = ttk.Frame(residual_frame)
+            self._res_canvas_frame.pack(fill="both", expand=True)
 
-        # Frame pour le graphique des résidus + checkboxes
-        residual_frame = ttk.LabelFrame(
-            self.cal_graph_frame, text="Analyse des résidus", padding=5,
-        )
-        residual_frame.pack(fill="both", expand=True, pady=5)
+            # Stocker les données pour le redraw
+            self._res_tensions = tensions
+            self._res_masses = masses_g
 
-        # Checkboxes pour afficher/cacher chaque modèle
-        cb_frame = ttk.Frame(residual_frame)
-        cb_frame.pack(fill="x")
+            self._redraw_residuals()
 
-        self._res_show_affine = tk.BooleanVar(value=True)
-        self._res_show_quadratic = tk.BooleanVar(value=True)
-        self._res_show_piecewise = tk.BooleanVar(value=True)
-
-        ttk.Checkbutton(
-            cb_frame, text="Affine", variable=self._res_show_affine,
-            command=self._redraw_residuals,
-        ).pack(side="left", padx=5)
-        ttk.Checkbutton(
-            cb_frame, text="Quadratique", variable=self._res_show_quadratic,
-            command=self._redraw_residuals,
-        ).pack(side="left", padx=5)
-        ttk.Checkbutton(
-            cb_frame, text="Par morceaux", variable=self._res_show_piecewise,
-            command=self._redraw_residuals,
-        ).pack(side="left", padx=5)
-
-        # Frame pour le canvas du graphique résidus
-        self._res_canvas_frame = ttk.Frame(residual_frame)
-        self._res_canvas_frame.pack(fill="both", expand=True)
-
-        # Stocker les données pour le redraw
-        self._res_tensions = tensions
-        self._res_masses = masses_g
-
-        self._redraw_residuals()
-
-        # ===== FIN AJOUT — graphique des résidus =====
+            # ===== FIN AJOUT — graphique des résidus =====
 
     # ===== DÉBUT AJOUT — dessin du graphique des résidus =====
 
@@ -970,6 +998,11 @@ class App:
 
         canvas = FigureCanvasTkAgg(fig, master=self._res_canvas_frame)
         canvas.draw()
+
+        if self.save_calib:
+            fig.savefig(CALIBRATION_DIR / "residus_calibration.png", dpi=150)
+            print("Graphique des résidus enregistré dans dataCalibration/residus_calibration.png")
+
         canvas.get_tk_widget().pack(fill="both", expand=True)
 
     # ===== FIN AJOUT — dessin du graphique des résidus =====
@@ -997,7 +1030,7 @@ class App:
         if self.cal_dict and len(self.cal_dict) >= 2:
             self.val_masse_rt_g = masse.convert_masse(cur, self.cal_dict, self.cal_model)
             self.val_masse_rt_g -= self.tare_masse
-            if self.val_masse_rt_g < 1.0:
+            if self.val_masse_rt_g < 0.8:
                 if self.val_masse_rt_g < 0.3:
                     self.val_masse_rt_g = 0.0
                 elif self.val_masse_rt_g < 0.4:
@@ -1014,8 +1047,13 @@ class App:
             if self.cal_dict and len(self.cal_dict) >= 2:
                 self.val_masse_st_g = masse.convert_masse(self.avgCourantStable_value, self.cal_dict, self.cal_model)
                 self.val_masse_st_g -= self.tare_masse
-                if self.val_masse_st_g < 0.5:
-                    self.val_masse_st_g = 0.0
+                if self.val_masse_st_g < 0.8:
+                    if self.val_masse_st_g > 0.4:
+                        self.print_tare = False
+                        self.tare()
+                        self.print_tare = True
+                    if self.val_masse_st_g < 0.2:
+                        self.val_masse_st_g = 0.0
                 self.masse_stable.set(self._format_masse(self.val_masse_st_g))
             else:
                 raw = int(self.avgCourantStable_value - self.offset)
@@ -1028,7 +1066,7 @@ class App:
             if self.cal_dict and len(self.cal_dict) >= 2:
                 self.val_masse_lt_g = masse.convert_masse(self.avg_value_lock, self.cal_dict, self.cal_model)
                 self.val_masse_lt_g -= self.tare_masse
-                if self.val_masse_lt_g < 1.0:
+                if self.val_masse_lt_g < 0.3:
                     self.val_masse_lt_g = 0.0
                 self.masse_stable_lock.set(self._format_masse(self.val_masse_lt_g))
             else:
@@ -1452,6 +1490,13 @@ class App:
                                     ))
         print(f"Régulateur de courant appliqué P = {self.kp_c.get()} | I = {self.ki_c.get()}")
     
+    def stop_pid(self):
+        self.reset_pid()
+        self.send(b'G' + struct.pack('<fff', 0.0, 0.0, 0.0))
+        self.send(b'H' + struct.pack('<ff', 0.0, 0.0))
+        print("Arrête de l'asservissement")
+
+
     def send_masse_stable(self, isMasseStable):
         val = 1 if isMasseStable else 0
         self.send(b'M' + bytes([val]))
@@ -1462,14 +1507,16 @@ class App:
         #self.offset = self.avg_value
         self.offset = self.avgCourantStable_value
         #self.offset = self.last_courant
-        print(f"Tare avec {self.offset:.1f} bit")
+        if self.print_tare:
+            print(f"Tare avec {self.offset:.1f} bit")
         self.masse_stable_lock.set("0.0 g  /  0.0 kg")
         # Si calibration disponible, stocker la masse actuelle comme tare
         if self.cal_dict and len(self.cal_dict) >= 2:
             self.tare_masse = masse.convert_masse(
                 self.last_courant, self.cal_dict, self.cal_model
             )
-            print(f"Tare avec {self.tare_masse} gramme")
+            if self.print_tare:
+                print(f"Tare avec {self.tare_masse} gramme")
         else:
             self.tare_masse = 0.0
     # ===== FIN MODIFICATION — tare basée sur la masse =====
@@ -1715,6 +1762,13 @@ class App:
                 mass_rt = [d[5] for d in plot_data]
                 mass_stable = [d[6] for d in plot_data]
 
+                pos = [max(0, min(1024, v)) for v in pos]
+                cur = [max(0, min(1024, v)) for v in cur]
+                cmd_pos = [max(0, min(1024, v)) for v in cmd_pos]
+                cmd_cur = [max(0, min(1024, v)) for v in cmd_cur]
+                mass_rt = [max(0, min(125, v)) for v in mass_rt]
+                mass_stable = [max(0, min(125, v)) for v in mass_stable]
+
                 self.line_cur.set_data(t, cur)
                 self.line_pos.set_data(t, pos)
                 self.line_cmd_pos.set_data(t, cmd_pos)
@@ -1726,14 +1780,9 @@ class App:
                 self.ax2.set_xlim(x_min, x_max)
                 self.ax3.set_xlim(x_min, x_max)
 
-                self.ax1.relim(visible_only=True)
-                self.ax1.autoscale_view(scalex=False, scaley=True)
-
-                self.ax2.relim(visible_only=True)
-                self.ax2.autoscale_view(scalex=False, scaley=True)
-
-                self.ax3.relim(visible_only=True)
-                self.ax3.autoscale_view(scalex=False, scaley=True)
+                self.ax1.set_ylim(0, 1024)
+                self.ax2.set_ylim(0, 1024)
+                self.ax3.set_ylim(0, 125)
 
                 #self.fig.canvas.draw_idle() #MODIF Claude final
                 self.plot_canvas.draw_idle()
