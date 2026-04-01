@@ -12,8 +12,8 @@ volatile uint16_t consigneCourant = 512; // Envoyer 50% = 0A par défaut
 volatile bool mesureValide = false;
 MemoireConsigneCourant_t memoireConsigne = {0};
 
-uint16_t commandePosition = 0;
-uint16_t commandeCourant = 0;
+uint16_t commandePosition = 512;
+uint16_t commandeCourant = 512;
 
 // --- PID Timer ---
 void setupTimerPID()
@@ -47,12 +47,9 @@ MemoireAsservissement_t memoireAsservissementCourant = {0};
 void tare()
 {
     cli();
-    // Accès section critique
-    // positionRef = positionFiltre;
-    positionRef = 300;
+    positionRef = positionFiltre;
+    consigneCourant = 512;
     sei();
-
-    resetPID();
 }
 
 void setPositionReference(uint16_t pref)
@@ -71,10 +68,12 @@ void initCoeffsPID_Position(float Kp, float Ki, float Kd)
 
 void resetPID()
 {
-    initCoeffsPID_Position(0.012, 12, 0.012);
-    initCoeffsPI_Courant(0.4, 165);
     memoireAsservissementPos = {0};
     memoireAsservissementCourant = {0};
+
+    consigneCourant  = 512;
+    commandePosition = 512;
+    commandeCourant  = 512;
 }
 
 uint16_t printCounter = 0;
@@ -113,10 +112,10 @@ void calculCommandePosition(uint16_t position)
     // OCR3A = pwm;
 
     // Update valeurs mémoire
-    memoireConsigne.consigne1 = consigneCourant;
-    memoireConsigne.consigne2 = memoireConsigne.consigne1;
     memoireConsigne.consigne3 = memoireConsigne.consigne2;
-    if (memoireConsigne.consigne3 - memoireConsigne.consigne1 <= 2 && erreur <= 0.002)
+    memoireConsigne.consigne2 = memoireConsigne.consigne1;
+    memoireConsigne.consigne1 = consigneCourant;
+    if (abs((int)memoireConsigne.consigne3 - (int)memoireConsigne.consigne1) <= 2 && fabsf(erreur) <= 0.002f)
     {
         compteurMesureValide++;
         if (compteurMesureValide > COMPTEUR_MESURE_VALIDE)
@@ -194,11 +193,9 @@ ISR(TIMER2_COMPA_vect)
     if (modeIdentification)
         return;
 
-    // Lecture de la position filtrée (section critique)
-    cli();
+        // Lecture des mesures filtrées
     uint16_t pos = positionFiltre;
     uint16_t courant = courantFiltre;
-    sei();
 
     // Calcul PID
     compteurCascade++;

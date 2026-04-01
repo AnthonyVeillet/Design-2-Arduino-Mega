@@ -203,7 +203,7 @@ class App:
         conn.pack(fill="x", pady=5)
 
         self.port = ttk.Entry(conn, width=10)
-        self.port.insert(0, "COM4")
+        self.port.insert(0, "COM3")
         self.port.pack(side="left", padx=5)
 
         ttk.Button(conn, text="Connecter", command=self.connect).pack(side="left")
@@ -963,62 +963,57 @@ class App:
 
     # ===== DÉBUT AJOUT — mise à jour continue de l'affichage masse =====
 
+    def _apply_zero_deadband(self, masse_g, seuil_g=0.5):
+        if abs(masse_g) < seuil_g:
+            return 0.0
+        return masse_g
+    
+    def _adc_to_mass_display_value(self, adc_value):
+        if self.cal_dict and len(self.cal_dict) >= 2:
+            masse_g = masse.convert_masse(adc_value, self.cal_dict, self.cal_model)
+            masse_g -= self.tare_masse
+            masse_g = self._apply_zero_deadband(masse_g)
+            return self._format_masse(masse_g)
+        else:
+            raw = int(adc_value - self.offset)
+            return f"{raw} ADC"
+
     def _format_masse(self, masse_g):
         """Formate une masse en g et kg avec précision 0.1 g."""
+        if abs(masse_g) < 0.05:
+            masse_g = 0.0
         masse_kg = masse_g / 1000.0
         return f"{masse_g:.1f} g  /  {masse_kg:.4f} kg"
 
     def _update_masse_display(self):
         """
-        Polling continu (~100ms) pour mettre à jour les deux affichages :
-        - Masse temps réel : valeur instantanée (même si balance instable)
-        - Masse : valeur après stabilisation et moyennage
-        Les deux sont affichées en grammes et kilogrammes.
-        Si une calibration est disponible, les valeurs ADC sont converties
-        en masse via le modèle de calibration. Sinon, affichage brut ADC.
+        Polling continu (~100ms) pour mettre à jour les affichages :
+        - Masse temps réel : valeur instantanée
+        - Masse stable : valeur après stabilisation et moyennage
+        - Masse lock : dernière valeur stable verrouillée
         """
         # --- Masse temps réel ---
         cur = self.last_courant
-        if self.cal_dict and len(self.cal_dict) >= 2:
-            masse_rt_g = masse.convert_masse(cur, self.cal_dict, self.cal_model)
-            masse_rt_g -= self.tare_masse
-            self.masse_rt.set(self._format_masse(masse_rt_g))
-        else:
-            raw = cur - self.offset
-            self.masse_rt.set(f"{raw} ADC")
+        self.masse_rt.set(self._adc_to_mass_display_value(cur))
 
-        # --- Masse (stable, après moyennage) ---
+        # --- Masse stable (après moyennage) ---
         if self.avgCourantStable_value is not None:
-            if self.cal_dict and len(self.cal_dict) >= 2:
-                masse_st_g = masse.convert_masse(
-                    self.avgCourantStable_value, self.cal_dict, self.cal_model
-                )
-                masse_st_g -= self.tare_masse
-                self.masse_stable.set(self._format_masse(masse_st_g))
-            else:
-                raw = int(self.avgCourantStable_value - self.offset)
-                self.masse_stable.set(f"{raw} ADC")
+            self.masse_stable.set(
+                self._adc_to_mass_display_value(self.avgCourantStable_value)
+            )
         else:
             self.masse_stable.set("--- g  /  --- kg")
 
-        # --- Masse lock (stable, après moyennage) ---
+        # --- Masse lock (affichée une fois puis remise à None) ---
         if self.avg_value_lock is not None:
-            if self.cal_dict and len(self.cal_dict) >= 2:
-                masse_lt_g = masse.convert_masse(
-                    self.avg_value_lock, self.cal_dict, self.cal_model
-                )
-                masse_lt_g -= self.tare_masse
-                self.masse_stable_lock.set(self._format_masse(masse_lt_g))
-            else:
-                raw = int(self.avg_value_lock - self.offset)
-                self.masse_stable_lock.set(f"{raw} ADC")
-            self.avg_value_lock = None  # Affiché une fois, réinitialisé pour la prochaine mesure
-        #else:
-            #self.masse_stable_lock.set("--- g  /  --- kg")
+            self.masse_stable_lock.set(
+                self._adc_to_mass_display_value(self.avg_value_lock)
+            )
 
         self.root.after(self.masseRT_affichage, self._update_masse_display)
 
     # ===== FIN AJOUT — mise à jour continue de l'affichage masse =====
+    
 
     # ===== DÉBUT AJOUT — méthodes de défilement (scroll) =====
 
@@ -1209,21 +1204,21 @@ class App:
                             self.stable = True
                             self.tare_btn.config(state="normal")
                             self.btn_update_tps_moy.config(state="normal")
+
                             self.avg_value = self.avgCourantStable_value
-                            
+                            self.avg_value_lock = self.avgCourantStable_value
+
                             print(f"Stabilisé à {self.avg_value:.1f} ADC (ErrPos={erreur_pos:.1f})")
-                            
-                            if self.masse_lock_flag:
-                                self.avg_value_lock = self.avgCourantStable_value
-                                self.masse_lock_flag = False
-                            
+
+                            self.masse_lock_flag = False
+
                             if self.init_tare_flag:
                                 self.tare()
                                 self.init_tare_flag = False
-                            
+
                             self.pos_somme = 0
                             self.pos_count = 0
-                                
+
                             self.canvas.itemconfig(self.led, fill="green")
                     else:
                         self.stable = False
@@ -1398,7 +1393,8 @@ class App:
     # ===== DÉBUT MODIFICATION — tare basée sur la masse =====
     def tare(self):
         #self.offset = self.avg_value
-        self.offset = self.last_courant
+        # self.offset = self.last_courant
+        self.offset = self.avgCourantStable_value
         print(f"Tare avec {self.offset:.1f}")
         self.masse_stable_lock.set("0.0 g  /  0.0 kg")
         # Si calibration disponible, stocker la masse actuelle comme tare
