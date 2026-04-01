@@ -14,6 +14,8 @@ void setup()
   Serial.begin(115200);
   pinMode(ledPin, OUTPUT); // LED
 
+  pinMode(massePin, OUTPUT);
+
   cli(); // désactiver interruptions
   setup_ADC();
   setup_PWM();
