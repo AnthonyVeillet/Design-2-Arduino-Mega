@@ -133,7 +133,7 @@ class App:
         self.box_PLOT_WINDOW_SECONDS = None
         self.refresh_graph = 1000 # Temps de refresh des données des graphique en ms
         self.box_refresh_graph = None
-        self.pos_ref = 300
+        self.pos_ref = 300 # Position de référence initiale (en bits)
         self.box_pos_ref = None
         # Variable affichage et graphique TonyProtoV2 ===FIN===
 
@@ -1242,11 +1242,12 @@ class App:
             self.pos_count += 1
             pos_avg = self.pos_somme / self.pos_count
 
-            try:
+            """try:
                 current_pos_ref = float(self.pos_ref)
             except ValueError:
-                current_pos_ref = 0.0 # Sécurité si le champ est vide
+                current_pos_ref = 0.0 # Sécurité si le champ est vide"""
 
+            current_pos_ref = float(self.pos_ref)
             erreur_pos = abs(pos_avg - current_pos_ref)
             pos_ok = erreur_pos <= self.pos_error_threshold
 
