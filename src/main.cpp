@@ -62,9 +62,9 @@ void loop()
       uint8_t pwm = Serial.read();
       uint16_t duration_ms = Serial.read() | (Serial.read() << 8);
 
-      setNewDutyCycleValue(pwm / 100.0f);
+      OCR3A = 200;
       delay(duration_ms);
-      setNewDutyCycleValue(0.5f); // retour à 50%
+      OCR3A = 512; // retour à 50%
     }
     else if (cmd == 'Z')
     {
@@ -72,11 +72,13 @@ void loop()
     }
     else if (cmd == 'P')
     {
-      while (Serial.available() < 1)
-        ;
-      uint8_t pwm = Serial.read(); // 0–100
+      if (Serial.available() >= 1)
+      {
+        uint8_t pwm = Serial.read();
 
-      setNewDutyCycleValue(pwm / 100.0f);
+        setNewDutyCycleValue(pwm / 100.0f);
+        
+      }
     }
     // Consigne position
     else if (cmd == 'R')

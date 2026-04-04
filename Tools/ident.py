@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import threading
 
 # ===== CONFIG =====
-PORT = "COM3"        # <-- à adapter
+PORT = "COM4"        # <-- à adapter
 BAUD = 115200
 
 MODE = "impulse"     # "impulse" ou "step"
@@ -37,14 +37,14 @@ time.sleep(2)  # laisser Arduino démarrer
 
 # ===== INIT =====
 ser.write(b'I')
-ser.write(b'P' + bytes([50]))
+# ser.write(b'P' + bytes([50]))
 time.sleep(0.1)
 
 # START acquisition
 ser.write(b'S')
 ack = ser.read(1)
-if ack != b'O':
-    raise Exception("ACK non reçu")
+# if ack != b'O':
+#     raise Exception("ACK non reçu")
 
 print("Acquisition démarrée")
 
