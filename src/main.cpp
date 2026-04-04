@@ -54,6 +54,18 @@ void loop()
       resetPID();
       modeIdentification = false;
     }
+    else if (cmd == 'U') // impulsion
+    {
+      while (Serial.available() < 3)
+        ;
+
+      uint8_t pwm = Serial.read();
+      uint16_t duration_ms = Serial.read() | (Serial.read() << 8);
+
+      setNewDutyCycleValue(pwm / 100.0f);
+      delay(duration_ms);
+      setNewDutyCycleValue(0.5f); // retour à 50%
+    }
     else if (cmd == 'Z')
     {
       resetPID();

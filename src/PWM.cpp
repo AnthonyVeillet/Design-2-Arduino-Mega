@@ -25,7 +25,7 @@ void setNewDutyCycleValue(uint8_t dutyCycle)
   {
     dutyCycle = 100;
   }
-  uint16_t count = (dutyCycle * 1023) / 100;
+  uint16_t count = (dutyCycle * 1024) / 100;
   OCR3A = count;
 }
 

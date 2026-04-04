@@ -16,6 +16,7 @@ from collections import deque
 import statistics
 import sys
 from tkinter.scrolledtext import ScrolledText
+import threading
 
 # ===== DÉBUT AJOUT — imports calibration =====
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -68,6 +69,7 @@ class App:
         self.running = False
         self.plot_running = False
         self.ident_running = False
+        self.data_lock = threading.Lock()
 
         self.last_courant = 0
         self.last_flag = 0
@@ -1283,15 +1285,16 @@ class App:
 
             #self.data.append((time.time(), pos, cur, cmd_pos, cmd_cur))
             #print(f"=========test {self.val_masse_rt_g}")
-            self.data.append((
-                                time.time(),
-                                pos,
-                                cur,
-                                cmd_pos,
-                                cmd_cur,
-                                self.val_masse_rt_g,
-                                self.val_masse_st_g
-                            ))
+            with self.data_lock:
+                self.data.append((
+                                    time.time(),
+                                    pos,
+                                    cur,
+                                    cmd_pos,
+                                    cmd_cur,
+                                    self.val_masse_rt_g,
+                                    self.val_masse_st_g
+                                ))
     
     def moyennageCourantStable(self, courant):
         # values = list(self.courantStable_buffer)
@@ -1545,77 +1548,117 @@ class App:
             mode = self.signal_type.get()
 
             REF_TIME = 5
-            STEP_TIME = 15 if mode == "step" else 0.05
-            POST_TIME = 15
+            STEP_TIME = 15
+            POST_TIME = 5
 
-            self.data.clear()
+            with self.data_lock:
+                self.data.clear()
 
             self.send(b'I')
             self.send(b'P' + bytes([50]))
             time.sleep(0.1)
 
+            # START + ACK
             self.send(b'S')
+            # ack = self.ser.read(1)
+            # if ack != b'O':
+            #     raise Exception("ACK non reçu")
 
+            # ===== PHASE REF =====
             time.sleep(REF_TIME)
-            ref_data = list(self.data)
+
+            with self.data_lock:
+                ref_data = list(self.data)
+
+            if len(ref_data) == 0:
+                raise Exception("Aucune donnée reçue")
 
             pos_ref = sum(d[1] for d in ref_data) / len(ref_data)
             cur_ref = sum(d[2] for d in ref_data) / len(ref_data)
 
-            self.send(b'P' + bytes([pwm]))
+            print(f"pos_ref={pos_ref:.2f}, cur_ref={cur_ref:.2f}")
 
-            t0 = time.time()
-            zero_sent = False
+            # ===== PHASE TEST =====
+            if mode == "impulse":
+                duration_ms = 50
+                self.send(b'U' + bytes([pwm]) + duration_ms.to_bytes(2, 'little'))
 
-            while True:
-                elapsed = time.time() - t0
+                # attendre impulsion + retour au repos
+                time.sleep((duration_ms / 1000.0) + POST_TIME)
 
-                if (not zero_sent) and elapsed >= STEP_TIME:
-                    self.send(b'P' + bytes([50]))
-                    zero_sent = True
+            else:
+                # échelon
+                self.send(b'P' + bytes([pwm]))
+                time.sleep(STEP_TIME)
 
-                if elapsed >= STEP_TIME + POST_TIME:
-                    break
-
-                time.sleep(0.001)
+                self.send(b'P' + bytes([50]))
+                time.sleep(POST_TIME)
 
             self.send(b'E')
 
-            all_data = list(self.data)
+            with self.data_lock:
+                all_data = list(self.data)
 
+            if len(all_data) == 0:
+                raise Exception("Aucune donnée enregistrée")
+
+            # ===== CSV =====
             filename = self.data_dir / f"{mode}_{pwm}.csv"
 
             with open(filename, "w", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow(["time", "pos", "cur", "cmd_pos", "cmd_cur", "pos_reel", "cur_reel"])
+                writer.writerow([
+                    "time",
+                    "pos",
+                    "cur",
+                    "cmd_pos",
+                    "cmd_cur",
+                    "pos_reel",
+                    "cur_reel"
+                ])
 
                 t0 = all_data[0][0]
 
                 for d in all_data:
                     t = d[0] - t0
+
+                    pos = d[1]
+                    cur = d[2]
+                    cmd_pos = d[3]
+                    cmd_cur = d[4]
+
                     writer.writerow([
-                        t, d[1], d[2], d[3], d[4],
-                        d[1] - pos_ref,
-                        d[2] - cur_ref
+                        t,
+                        pos,
+                        cur,
+                        cmd_pos,
+                        cmd_cur,
+                        pos - pos_ref,
+                        cur - cur_ref
                     ])
 
             print("CSV sauvegardé:", filename)
 
+            # ===== PLOT =====
             t = [d[0] - all_data[0][0] for d in all_data]
             pos = [d[1] - pos_ref for d in all_data]
             cur = [d[2] - cur_ref for d in all_data]
 
             plt.figure()
-            plt.subplot(2,1,1)
+
+            plt.subplot(2, 1, 1)
             plt.plot(t, pos)
             plt.title("Position réelle")
+            plt.grid()
 
-            plt.subplot(2,1,2)
+            plt.subplot(2, 1, 2)
             plt.plot(t, cur)
             plt.title("Courant réel")
+            plt.grid()
 
             png = self.data_dir / f"{mode}_{pwm}.png"
             plt.savefig(png)
+
             print("PNG sauvegardé:", png)
 
             plt.show()
@@ -1625,7 +1668,6 @@ class App:
 
         finally:
             self.ident_running = False
-
     # ================= OSCILLO =================
     def start_plot(self):
             if self.fig:
