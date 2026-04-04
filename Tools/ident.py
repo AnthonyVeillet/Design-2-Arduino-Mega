@@ -9,12 +9,12 @@ import threading
 PORT = "COM4"        # <-- à adapter
 BAUD = 115200
 
-MODE = "impulse"     # "impulse" ou "step"
+MODE = "step"     # "impulse" ou "step"
 PWM = 70             # 0–100
 DURATION_MS = 50     # seulement pour impulsion
 
 REF_TIME = 5
-STEP_TIME = 10
+STEP_TIME = 5000
 POST_TIME = 10
 
 # ==================
@@ -56,10 +56,8 @@ if MODE == "impulse":
 
 else:
     print("Échelon")
-    ser.write(b'P' + bytes([PWM]))
-    time.sleep(STEP_TIME)
-    ser.write(b'P' + bytes([50]))
-    time.sleep(POST_TIME)
+    ser.write(b'U' + bytes([PWM]) + STEP_TIME.to_bytes(2, 'little'))
+    time.sleep((STEP_TIME / 1000.0) + POST_TIME)
 
 # ===== STOP =====
 ser.write(b'E')
