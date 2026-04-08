@@ -9,7 +9,7 @@ import threading
 PORT = "COM4"        # <-- à adapter
 BAUD = 115200
 
-MODE = "step"     # "impulse" ou "step"
+MODE = "asservi"     # "impulse" ou "step" ou "asservi"
 PWM = 70             # 0–100
 DURATION_MS = 50     # seulement pour impulsion
 
@@ -36,7 +36,10 @@ threading.Thread(target=read_data, daemon=True).start()
 time.sleep(2)  # laisser Arduino démarrer
 
 # ===== INIT =====
-ser.write(b'I')
+if MODE != "asservi":
+    ser.write(b'I')
+else:
+    ser.write(b'N')
 # ser.write(b'P' + bytes([50]))
 time.sleep(0.1)
 
@@ -54,10 +57,15 @@ if MODE == "impulse":
     ser.write(b'U' + bytes([PWM]) + DURATION_MS.to_bytes(2, 'little'))
     time.sleep((DURATION_MS / 1000.0) + POST_TIME)
 
-else:
+elif MODE == "step":
     print("Échelon")
     ser.write(b'U' + bytes([PWM]) + STEP_TIME.to_bytes(2, 'little'))
     time.sleep((STEP_TIME / 1000.0) + POST_TIME)
+
+else:
+    print("Asservi")
+    time.sleep(POST_TIME + 5)
+
 
 # ===== STOP =====
 ser.write(b'E')
@@ -88,19 +96,31 @@ print("CSV sauvegardé:", filename)
 t = [d[0] - all_data[0][0] for d in all_data]
 pos = [d[1] for d in all_data]
 cur = [d[2] for d in all_data]
+cmd_pos = [d[3] for d in all_data]
+cmd_cur = [d[4] for d in all_data]
 
 plt.figure()
+
+# ===== POSITION =====
 plt.subplot(2, 1, 1)
-plt.plot(t, pos)
-plt.title("Position réelle")
+plt.plot(t, pos, label="Position réelle")
+plt.plot(t, cmd_pos, '--', label="Commande position")
+plt.title("Position")
+plt.legend()
 plt.grid()
 
+# ===== COURANT =====
 plt.subplot(2, 1, 2)
-plt.plot(t, cur)
-plt.title("Courant réel")
+plt.plot(t, cur, label="Courant réel")
+plt.plot(t, cmd_cur, '--', label="Commande courant")
+plt.title("Courant")
+plt.legend()
 plt.grid()
+
+plt.tight_layout()
 
 png = f"{MODE}_{PWM}.png"
-plt.savefig(png)
+plt.savefig(png, dpi=150)
 print("PNG sauvegardé:", png)
+
 plt.show()

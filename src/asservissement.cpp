@@ -74,6 +74,10 @@ void resetPID()
     consigneCourant  = 512;
     commandePosition = 512;
     commandeCourant  = 512;
+
+    initCoeffsPID_Position(0.12, 12, 0.012);
+    initCoeffsPI_Courant(0.4, 165);
+    positionRef = 300;
 }
 
 uint16_t printCounter = 0;
