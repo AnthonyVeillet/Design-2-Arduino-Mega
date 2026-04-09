@@ -53,6 +53,10 @@ void loop()
     {
       resetPID();
       modeIdentification = false;
+      // delay(500);
+      // setPositionReference(50);
+      // delay(50);
+      // setPositionReference(0);
     }
     else if (cmd == 'U') // impulsion
     {

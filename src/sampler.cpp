@@ -89,13 +89,6 @@ ISR(ADC_vect)
     {
         filtreCourant(adcValues[activeChannel]);
     }
-
-    // toggleCounter++;
-    // if (toggleCounter >= 5000)
-    // {
-    //     digitalWrite(13, !digitalRead(13));
-    //     toggleCounter = 0;
-    // }
 }
 
 void filtrePosition(uint16_t newPosition)

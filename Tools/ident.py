@@ -64,7 +64,7 @@ elif MODE == "step":
 
 else:
     print("Asservi")
-    time.sleep(POST_TIME + 5)
+    time.sleep(5)
 
 
 # ===== STOP =====
@@ -76,7 +76,8 @@ if len(all_data) == 0:
     raise Exception("Aucune donnée reçue")
 
 # ===== CSV =====
-filename = f"{MODE}_{PWM}.csv"
+# filename = f"{MODE}_{PWM}.csv"
+filename = f"boucle_pos_impulsion.csv"
 with open(filename, "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["time", "pos", "cur", "cmd_pos", "cmd_cur"])
@@ -119,7 +120,8 @@ plt.grid()
 
 plt.tight_layout()
 
-png = f"{MODE}_{PWM}.png"
+# png = f"{MODE}_{PWM}.png"
+png = "boucle_pos_impulsion.png"
 plt.savefig(png, dpi=150)
 print("PNG sauvegardé:", png)
 
