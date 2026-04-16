@@ -9,7 +9,7 @@ import threading
 PORT = "COM4"        # <-- à adapter
 BAUD = 115200
 
-MODE = "step"     # "impulse" ou "step" ou "asservi"
+MODE = "asservi"     # "impulse" ou "step" ou "asservi"
 PWM = 70             # 0–100
 DURATION_MS = 50     # seulement pour impulsion
 
@@ -64,7 +64,7 @@ elif MODE == "step":
 
 else:
     print("Asservi")
-    time.sleep(5)
+    time.sleep(10)
 
 
 # ===== STOP =====
@@ -77,7 +77,7 @@ if len(all_data) == 0:
 
 # ===== CSV =====
 # filename = f"{MODE}_{PWM}.csv"
-filename = f"50g_boule_ouverte.csv"
+filename = f"50g_asservi_final.csv"
 with open(filename, "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["time", "pos", "cur", "cmd_pos", "cmd_cur"])
@@ -121,7 +121,7 @@ plt.grid()
 plt.tight_layout()
 
 # png = f"{MODE}_{PWM}.png"
-png = "50g_boule_ouverte.png"
+png = "50g_asservi_final.png"
 plt.savefig(png, dpi=150)
 print("PNG sauvegardé:", png)
 
