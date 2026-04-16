@@ -71,9 +71,9 @@ void resetPID()
     memoireAsservissementPos = {0};
     memoireAsservissementCourant = {0};
 
-    consigneCourant  = 512;
+    consigneCourant = 512;
     commandePosition = 512;
-    commandeCourant  = 512;
+    commandeCourant = 512;
 
     initCoeffsPID_Position(0.12, 12, 0.012);
     initCoeffsPI_Courant(0.4, 165);
@@ -197,7 +197,7 @@ ISR(TIMER2_COMPA_vect)
     if (modeIdentification)
         return;
 
-        // Lecture des mesures filtrées
+    // Lecture des mesures filtrées
     uint16_t pos = positionFiltre;
     uint16_t courant = courantFiltre;
 

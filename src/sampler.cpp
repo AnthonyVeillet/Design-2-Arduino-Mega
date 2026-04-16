@@ -77,13 +77,31 @@ ISR(TIMER1_COMPA_vect)
         nextChannel = ADC_POSITION_A0;
 }
 
+volatile uint16_t testCompteur = 0;
 ISR(ADC_vect)
 {
     adcValues[activeChannel] = ADC;
 
+    uint16_t pos;
+    testCompteur++;
+    if (testCompteur <= 250)
+    {
+        // 10Hz
+        pos = 200;
+    }
+    else if (testCompteur > 250 && testCompteur <= 500)
+    {
+        pos = 400;
+    }
+    else
+    {
+        pos = 200;
+        testCompteur = 0;
+    }
+
     if (activeChannel == ADC_POSITION_A0)
     {
-        filtrePosition(adcValues[activeChannel]);
+        filtrePosition(pos);
     }
     else
     {
