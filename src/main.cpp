@@ -66,9 +66,9 @@ void loop()
       uint8_t pwm = Serial.read();
       uint16_t duration_ms = Serial.read() | (Serial.read() << 8);
 
-      OCR3A = 800;
-      delay(duration_ms);
-      OCR3A = 512; // retour à 50%
+      // OCR3A = 800;
+      // delay(duration_ms);
+      // OCR3A = 512; // retour à 50%
     }
     else if (cmd == 'Z')
     {

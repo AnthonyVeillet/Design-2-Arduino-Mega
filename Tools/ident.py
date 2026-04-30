@@ -77,7 +77,7 @@ if len(all_data) == 0:
 
 # ===== CSV =====
 # filename = f"{MODE}_{PWM}.csv"
-filename = f"50g_asservi_final.csv"
+filename = f"boucle_position_consigne.csv"
 with open(filename, "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["time", "pos", "cur", "cmd_pos", "cmd_cur"])
@@ -121,7 +121,7 @@ plt.grid()
 plt.tight_layout()
 
 # png = f"{MODE}_{PWM}.png"
-png = "50g_asservi_final.png"
+png = "boucle_position_consigne.png"
 plt.savefig(png, dpi=150)
 print("PNG sauvegardé:", png)
 

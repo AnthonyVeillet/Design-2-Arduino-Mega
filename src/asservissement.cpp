@@ -71,9 +71,9 @@ void resetPID()
     memoireAsservissementPos = {0};
     memoireAsservissementCourant = {0};
 
-    consigneCourant  = 512;
+    consigneCourant = 512;
     commandePosition = 512;
-    commandeCourant  = 512;
+    commandeCourant = 512;
 
     initCoeffsPID_Position(0.12, 12, 0.012);
     initCoeffsPI_Courant(0.4, 165);
@@ -93,8 +93,6 @@ void calculCommandePosition(uint16_t position)
     float r_norm = positionRef / 1023.0;
 
     float erreur = y_norm - r_norm;
-    // float erreur = position - positionRef; // position > positionRef: erreur positive
-    // Serial.println(positionRef);
 
     // Valeurs pour calcul commande
     float e1 = memoireAsservissementPos.erreur1;
@@ -110,10 +108,6 @@ void calculCommandePosition(uint16_t position)
 
     consigneCourant = convertCommandePWM(commande);
     commandePosition = consigneCourant;
-    // consigneCourant = 0;
-    // uint16_t pwm = convertCommandePWM(commande);
-
-    // OCR3A = pwm;
 
     // Update valeurs mémoire
     memoireConsigne.consigne3 = memoireConsigne.consigne2;
@@ -153,9 +147,9 @@ void initCoeffsPI_Courant(float Kp, float Ki)
 
     coeffCourant.b0 = Kp + (Ki * Te) / 2;
     coeffCourant.b1 = (Ki * Te) / 2 - Kp;
-    coeffCourant.b2 = 0;
 }
 
+volatile uint16_t consigneTestCourant = 0;
 void calculCommandeCourant(uint16_t courant)
 {
     float commande = 0;
@@ -163,7 +157,7 @@ void calculCommandeCourant(uint16_t courant)
 
     // normalisation
     float y_norm = courant / 1023.0;
-    float r_norm = consigneCourant / 1023.0;
+    float r_norm = consigneTestCourant / 1023.0;
 
     // Calcul de l'erreur
     float erreur = r_norm - y_norm;
@@ -172,15 +166,13 @@ void calculCommandeCourant(uint16_t courant)
     float e1 = memoireAsservissementCourant.erreur1;
     float u1 = memoireAsservissementCourant.commande1;
 
-    // Calcul commande PID
+    // Calcul commande PI
     commande = u1 + coeffCourant.b0 * erreur + coeffCourant.b1 * e1;
     if (commande > 1.0 || commande < -1.0)
         commandeSaturee = true;
     else
         commandeSaturee = false;
 
-    // sortie PWM
-    // setNewDutyCycleValue(commande);
     uint16_t pwm = convertCommandePWM(commande);
     commandeCourant = pwm;
     OCR3A = pwm;
@@ -192,12 +184,13 @@ void calculCommandeCourant(uint16_t courant)
 }
 
 volatile bool testCourant = false;
+volatile uint16_t testCourantCompteur = 0;
 ISR(TIMER2_COMPA_vect)
 {
-    if (modeIdentification)
-        return;
+    // if (modeIdentification)
+    //     return;
 
-        // Lecture des mesures filtrées
+    // Lecture des mesures filtrées
     uint16_t pos = positionFiltre;
     uint16_t courant = courantFiltre;
 
@@ -207,18 +200,24 @@ ISR(TIMER2_COMPA_vect)
     {
         // 50 Hz
         compteurCascade = 0;
-        calculCommandePosition(pos);
-        // if (testCourant)
-        // {
-        //     consigneCourant = 1000;
-        // }
-        // else
-        // {
-        //     consigneCourant = 0;
-        // }
-        // testCourant = !testCourant;
-        // consigneCourant = positionRef;
+        // calculCommandePosition(pos);
     }
+
+    testCourantCompteur++;
+    if (testCourantCompteur <= 100)
+    {
+        consigneTestCourant = 300;
+    }
+    else if (testCourantCompteur > 100 && testCourantCompteur < 200)
+    {
+        consigneTestCourant = 700;
+    }
+    else
+    {
+        consigneTestCourant = 300;
+        testCourantCompteur = 0;
+    }
+
     // 1000 Hz
     calculCommandeCourant(courant);
 }
