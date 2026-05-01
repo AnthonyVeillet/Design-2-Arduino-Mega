@@ -64,12 +64,12 @@ elif MODE == "step":
 
 else:
     print("Asservi")
-    time.sleep(10)
+    time.sleep(0.0001)
 
 
 # ===== STOP =====
 ser.write(b'E')
-time.sleep(1)
+time.sleep(0.001)
 
 all_data = list(data)
 if len(all_data) == 0:

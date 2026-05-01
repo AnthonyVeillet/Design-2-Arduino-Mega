@@ -187,37 +187,37 @@ volatile bool testCourant = false;
 volatile uint16_t testCourantCompteur = 0;
 ISR(TIMER2_COMPA_vect)
 {
-    // if (modeIdentification)
-    //     return;
+    if (modeIdentification)
+        return;
 
     // Lecture des mesures filtrées
     uint16_t pos = positionFiltre;
     uint16_t courant = courantFiltre;
 
     // Calcul PID
-    compteurCascade++;
-    if (compteurCascade >= 20)
-    {
-        // 50 Hz
-        compteurCascade = 0;
-        // calculCommandePosition(pos);
-    }
+    // compteurCascade++;
+    // if (compteurCascade >= 20)
+    // {
+    //     // 50 Hz
+    //     compteurCascade = 0;
+    //     // calculCommandePosition(pos);
+    // }
 
-    testCourantCompteur++;
-    if (testCourantCompteur <= 100)
-    {
-        consigneTestCourant = 300;
-    }
-    else if (testCourantCompteur > 100 && testCourantCompteur < 200)
-    {
-        consigneTestCourant = 700;
-    }
-    else
-    {
-        consigneTestCourant = 300;
-        testCourantCompteur = 0;
-    }
+    // testCourantCompteur++;
+    // if (testCourantCompteur <= 100)
+    // {
+    //     consigneTestCourant = 300;
+    // }
+    // else if (testCourantCompteur > 100 && testCourantCompteur < 200)
+    // {
+    //     consigneTestCourant = 700;
+    // }
+    // else
+    // {
+    //     consigneTestCourant = 300;
+    //     testCourantCompteur = 0;
+    // }
 
-    // 1000 Hz
-    calculCommandeCourant(courant);
+    // // 1000 Hz
+    // calculCommandeCourant(courant);
 }
