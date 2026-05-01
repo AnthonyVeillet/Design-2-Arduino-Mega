@@ -621,8 +621,8 @@ class App:
         if num < 3:
             messagebox.showwarning("Attention", "Minimum 3 masses de calibration.")
             return
-        if avg < 1000:
-            messagebox.showwarning("Attention", "Temps de moyennage minimum 1000 ms.")
+        if avg < 500:
+            messagebox.showwarning("Attention", "Temps de moyennage minimum 500 ms.")
             return
 
         # S'assurer qu'on est en mode asservi
@@ -1527,31 +1527,6 @@ class App:
             self.tare_masse = 0.0
     # ===== FIN MODIFICATION — tare basée sur la masse =====
 
-    """MODIF FINAL CLAUDE
-    # ================= START / STOP =================
-    def start(self):
-        print(f"Start oscilloscope avec fenêtre de {self.PLOT_WINDOW_SECONDS} secondes")
-        self.running = True
-        self.data.clear()
-
-        pwm = int(self.pwm_entry.get())
-
-        if self.mode.get() == "identification":
-            self.send(b'I')
-            self.send(b'P' + bytes([pwm]))
-        else:
-            self.send(b'N')
-
-        self.send(b'S')
-        self.start_plot()
-
-    def stop(self):
-        print("Stop oscilloscope")
-        self.running = False
-        self.plot_running = False
-        self.send(b'E')
-        self.send(b'P' + bytes([50]))
-    """
 
     def start(self):
         print(f"Start oscilloscope avec fenêtre de {self.PLOT_WINDOW_SECONDS} secondes")
@@ -1790,7 +1765,7 @@ class App:
                 self.ax2.set_ylim(0, 1024)
                 self.ax3.set_ylim(0, 125)
 
-                #self.fig.canvas.draw_idle() #MODIF Claude final
+                #self.fig.canvas.draw_idle() #MODIF final
                 self.plot_canvas.draw_idle()
 
         self.root.after(self.refresh_graph, self.update_plot)
