@@ -1,7 +1,3 @@
-"""
-masse.py — Logique de calibration et conversion de la balance.
-"""
-
 import json
 import threading
 import time
@@ -35,9 +31,8 @@ _collect_thread = None
 _cur_moyen = 0.0
 _lock = threading.Lock()
 
-# ===== DÉBUT AJOUT — mode calibration vs mesure =====
+# ===== mode calibration vs mesure =====
 _calibration_mode = True
-# ===== FIN AJOUT — mode calibration vs mesure =====
 
 
 # ── Conversion ADC → tension ────────────────────────────────────────────────
@@ -66,7 +61,7 @@ def init_calibration(n_masses, avg_time_ms, get_courant_fn, get_flag_fn):
     _cur_moyen = 0.0
 
 
-# ===== DÉBUT AJOUT — init_measurement pour usage hors calibration =====
+# ===== init_measurement pour usage hors calibration =====
 def init_measurement(avg_time_ms, get_courant_fn, get_flag_fn):
     """
     Initialise les fonctions de lecture sans toucher à l'état de calibration.
@@ -77,20 +72,19 @@ def init_measurement(avg_time_ms, get_courant_fn, get_flag_fn):
     averaging_time_ms = max(avg_time_ms, 1000)
     _get_courant = get_courant_fn
     _get_flag = get_flag_fn
-# ===== FIN AJOUT — init_measurement =====
 
 
 # ── Collecte (nextMasse logic) ──────────────────────────────────────────────
 
-# ===== DÉBUT MODIFICATION — start_next_masse avec paramètre calibration_mode =====
+# ===== start_next_masse avec paramètre calibration_mode =====
 def start_next_masse(calibration_mode=True):
     """
     Lance la collecte de la prochaine mesure.
     
     calibration_mode=True  → la collecte continue après le délai de moyennage
-                             jusqu'à ce que l'utilisateur appuie sur Next (stop_collecting).
+                            jusqu'à ce que l'utilisateur appuie sur Next (stop_collecting).
     calibration_mode=False → la collecte s'arrête automatiquement après le délai
-                             de moyennage. Utilisé pour la mesure continue (hors calibration).
+                            de moyennage. Utilisé pour la mesure continue (hors calibration).
     """
     global nextMasse, _accumulator, _cur_moyen, _collecting, _collect_thread
     global _calibration_mode
@@ -102,7 +96,6 @@ def start_next_masse(calibration_mode=True):
     _collecting = True
     _collect_thread = threading.Thread(target=_collect_loop, daemon=True)
     _collect_thread.start()
-# ===== FIN MODIFICATION — start_next_masse =====
 
 
 def stop_collecting():
@@ -114,7 +107,7 @@ def stop_collecting():
         _collect_thread = None
 
 
-# ===== DÉBUT MODIFICATION — _collect_loop avec gestion calibration_mode =====
+# ===== _collect_loop avec gestion calibration_mode =====
 def _collect_loop():
     global nextMasse, _cur_moyen, _collecting
 
@@ -157,7 +150,6 @@ def _collect_loop():
     else:
         # Mode mesure : la collecte s'arrête automatiquement
         _collecting = False
-# ===== FIN MODIFICATION — _collect_loop =====
 
 
 def get_cur_moyen():
@@ -218,7 +210,7 @@ def save_calibration():
     return cal_path
 
 
-# ===== DÉBUT AJOUT — load_calibration =====
+# ===== load_calibration =====
 def load_calibration():
     """
     Charge le fichier calibration.json et retourne le dictionnaire
@@ -232,21 +224,19 @@ def load_calibration():
             return json.load(f)
     except Exception:
         return None
-# ===== FIN AJOUT — load_calibration =====
 
 
 def get_valid_results():
     return [r for r in results if r is not None]
 
 
-# ===== DÉBUT AJOUT — Modèles de calibration et convertMasse =====
+# ===== Modèles de calibration et convertMasse =====
 
 # ── Ajustement par moindres carrés (modèle affine) ──────────────────────────
 def _fit_affine(voltages, masses):
     """
     Ajustement affine par moindres carrés : m = a*V + b
     Retourne (a, b).
-    Réf: eq. 7.39 et 7.40 du document de design.
     """
     n = len(voltages)
     sum_v = sum(voltages)
@@ -269,7 +259,6 @@ def _fit_quadratic(voltages, masses):
     """
     Ajustement quadratique par moindres carrés : m = a2*V² + a1*V + a0
     Retourne (a2, a1, a0).
-    Réf: eq. 6.32 du document de design.
     Résolution du système normal 3×3 par élimination de Gauss.
     """
     n = len(voltages)
@@ -415,13 +404,11 @@ def convert_masse(adc_val, cal_dict, model="affine"):
     de calibration spécifié.
     
     Paramètres :
-      adc_val  — valeur numérique ADC (sortie de get_cur_moyen / nextMasse)
-      cal_dict — dictionnaire {masse_g_str: tension_v} (calibration.json)
-      model    — "affine", "quadratic" ou "piecewise"
+        adc_val  — valeur numérique ADC (sortie de get_cur_moyen / nextMasse)
+        cal_dict — dictionnaire {masse_g_str: tension_v} (calibration.json)
+        model    — "affine", "quadratic" ou "piecewise"
     
     Retourne la masse en grammes, arrondie à 0.1 g.
-    
-    Réf: sections 6.4.3, 7.4.3, 7.4.4 du document de design.
     """
     if cal_dict is None or len(cal_dict) < 2:
         return 0.0
@@ -432,5 +419,3 @@ def convert_masse(adc_val, cal_dict, model="affine"):
     masse_g = _evaluate_model(voltage, voltages, masses, model)
 
     return round(masse_g, 1)
-
-# ===== FIN AJOUT — Modèles de calibration et convertMasse =====

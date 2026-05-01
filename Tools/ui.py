@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
@@ -16,23 +15,17 @@ from collections import deque
 import statistics
 import sys
 from tkinter.scrolledtext import ScrolledText
-
-# ===== DÉBUT AJOUT — imports calibration =====
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import masse
-# ===== FIN AJOUT — imports calibration =====
-
-# ===== DÉBUT AJOUT — imports simulation =====
 import random
 import math
-# ===== FIN AJOUT — imports simulation =====
 
 BAUDRATE = 115200
 BASE_DIR = Path(__file__).resolve().parent
 CALIBRATION_DIR = BASE_DIR / "dataCalibration"
 
-# ========== Code pour afficher les prints dans l'app DEBUT
+# ========== Code pour afficher les prints dans l'app
 class TextRedirector:
     def __init__(self, app, tag=None):
         self.app = app
@@ -46,13 +39,12 @@ class TextRedirector:
 
     def flush(self):
         pass
-# ========== Code pour afficher les prints dans l'app FIN
 class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Balance Asservie")
 
-        # ===== DÉBUT AJOUT — fenêtre scrollable =====
+        # ===== fenêtre scrollable =====
         self.CONTENT_W = 1800
         self.CONTENT_H = 1000
 
@@ -62,33 +54,25 @@ class App:
         init_w = min(self.CONTENT_W, screen_w - 50)
         init_h = min(self.CONTENT_H, screen_h - 80)
         self.root.geometry(f"{init_w}x{init_h}")
-        # ===== FIN AJOUT — fenêtre scrollable =====
-
         self.ser = None
         self.rx_buffer = bytearray()
-
         self.running = False
         self.plot_running = False
         self.ident_running = False
-
         self.last_courant = 0
         self.last_flag = 0
         self.offset = 0
         self.init_tare_flag = True # Pour faire un tare automatique
         self.bouton_tare_flag = False # Permet au bouton Tare d'être actif seulement apres asservissement et moyennage
-
         self.data = []
-
         self.fig = None
-
         self.data_dir = Path("dataIdentification")
         self.data_dir.mkdir(exist_ok=True)
 
-        # ===== DÉBUT AJOUT — variables calibration =====
+        # ===== variables calibration =====
         self.cal_window = None
-        # ===== FIN AJOUT — variables calibration =====
 
-        # ===== DÉBUT AJOUT — variables simulation =====
+        # ===== variables simulation =====
         self.sim_mode = False
         self.sim_thread = None
         self.sim_running = False
@@ -96,10 +80,8 @@ class App:
         self.sim_position = 300.0   # Position simulée (autour de positionRef)
         self.sim_courant = 512.0    # Courant simulé (512 = milieu ADC = 0A)
         self.sim_flag_counter = 0   # Compteur pour simuler la stabilisation
-        # ===== FIN AJOUT — variables simulation =====
 
         # ===== STABILITÉ =====
-
         self.masse_lock_flag = True # Pour indiquer que la masse lock peut être mise à jour (après asservissement et moyennage)
         self.avg_value = None
         self.avg_value_lock = None
@@ -107,26 +89,22 @@ class App:
         self.stable_since = None
         self.print_tare = True
         self.save_calib = True
-
         self.stab_buffer = deque(maxlen=150)
         self.span_threshold = 6.0
         self.std_threshold = 1.5
         self.min_stable_time = 1
-
         self.pos_somme = 0
         self.pos_count = 0
         self.pos_error_threshold = 2.0
-
         # self.courantStable_buffer = deque(maxlen=200)
         self.courantStable_somme = 0
         self.courantStable_nbElem = 0
         self.avgCourantStable_value = None
 
-        # ========== Code pour afficher les prints dans l'app DEBUT
+        # ========== Code pour afficher les prints dans l'app
         self._stdout = sys.stdout
-        # ========== Code pour afficher les prints dans l'app FIN
 
-        # Variable affichage et graphique TonyProtoV2 ===DEBUT===
+        # Variable affichage et graphique
         self.masseRT_affichage = 100 # Fréquence d'affichage de la masse temps réel (en ms)
         self.PLOT_WINDOW_SECONDS = 30.0 # Temps de la fenetre du graphique (en secondes)
         self.box_masseRT_affichage = None
@@ -135,7 +113,6 @@ class App:
         self.box_refresh_graph = None
         self.pos_ref = 300 # Position de référence initiale (en bits)
         self.box_pos_ref = None
-        # Variable affichage et graphique TonyProtoV2 ===FIN===
 
         # Variable de masse pour graphique
         self.val_masse_rt_g = 0.0
@@ -144,15 +121,14 @@ class App:
 
         self.create_widgets()
 
-        # ========== Code pour afficher les prints dans l'app DEBUT
+        # ========== Code pour afficher les prints dans l'app
         sys.stdout = TextRedirector(self)
         self._append_console("Console intégrée prête.\n")
-        # ========== Code pour afficher les prints dans l'app FIN
 
     # ================= UI =================
     def create_widgets(self):
-        # ===== DÉBUT AJOUT — conteneur scrollable =====
-        # ========== Code pour afficher les prints dans l'app DEBUT
+        # ===== conteneur scrollable =====
+        # ========== Code pour afficher les prints dans l'app
         root_container = ttk.Frame(self.root)
         root_container.pack(fill="both", expand=True)
 
@@ -208,7 +184,6 @@ class App:
 
         # Console à droite
         self._create_console_panel(self.right_panel)
-        # ========== Code pour afficher les prints dans l'app FIN
         main = ttk.Frame(self.scroll_frame, padding=15)
         main.pack(fill="both", expand=True)
 
@@ -221,13 +196,12 @@ class App:
 
         ttk.Button(conn, text="Connecter", command=self.connect).pack(side="left")
 
-        # ===== DÉBUT AJOUT — toggle simulation =====
+        # ===== toggle simulation =====
         self.sim_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             conn, text="Simulation", variable=self.sim_var,
             command=self._toggle_sim,
         ).pack(side="right", padx=5)
-        # ===== FIN AJOUT — toggle simulation =====
 
         mode_frame = ttk.LabelFrame(main, text="Mode", padding=10)
         mode_frame.pack(fill="x", pady=5)
@@ -306,11 +280,11 @@ class App:
                     command=self.stop_pid
                     ).grid(row=1, column=1)
 
-        # ===== DÉBUT MODIFICATION — affichage Masse temps réel + Masse stable =====
+        # ===== affichage Masse temps réel + Masse stable =====
         measure_frame = ttk.LabelFrame(main, text=f"Mesure (Affichage à chaque {self.masseRT_affichage} ms)", padding=10)
         measure_frame.pack(fill="x", pady=5)
 
-        # Variable affichage et graphique TonyProtoV2 ===DEBUT===
+        # Variable affichage et graphique
         row1_measure_frame = ttk.Frame(measure_frame) # Ajout ui masse
         row1_measure_frame.pack(fill="x", pady=5) # Ajout ui masse
 
@@ -319,7 +293,6 @@ class App:
 
         row3_measure_frame = ttk.Frame(measure_frame) # Ajout ui masse
         row3_measure_frame.pack(fill="x", pady=5) # Ajout ui masse
-        # Variable affichage et graphique TonyProtoV2 ===FIN===
 
         # LED de stabilité (à droite)
         self.canvas = tk.Canvas(row1_measure_frame, width=30, height=30)
@@ -375,9 +348,8 @@ class App:
 
         # Lancer le polling d'affichage
         self.root.after(100, self._update_masse_display)
-        # ===== FIN MODIFICATION — affichage Masse temps réel + Masse stable =====
 
-        # Variable affichage et graphique TonyProtoV2 ===DEBUT===
+        # Variable affichage et graphique
         action = ttk.Frame(row2_measure_frame)
         action.pack(fill="x", pady=5)
 
@@ -415,13 +387,11 @@ class App:
         self.box_refresh_graph.insert(0, str(self.refresh_graph))
         self.box_refresh_graph.pack(side="left", padx=5)
         ttk.Button(row3_action2, text="Update refresh graphique (ms)", command=self.update_refresh_graph).pack(side="left", padx=5)
-        # Variable affichage et graphique TonyProtoV2 ===FIN===
 
-        # ===== DÉBUT AJOUT — section Calibration dans la fenêtre principale =====
+        # ===== section Calibration dans la fenêtre principale =====
         self._create_calibration_section(main)
-        # ===== FIN AJOUT — section Calibration dans la fenêtre principale =====
 
-    # ========== Code pour afficher les prints dans l'app DEBUT
+    # ========== Code pour afficher les prints dans l'app
     def _create_console_panel(self, parent):
         console_frame = ttk.LabelFrame(parent, text="Console", padding=8)
         console_frame.pack(fill="both", expand=True)
@@ -465,11 +435,10 @@ class App:
         self.console.configure(state="normal")
         self.console.delete("1.0", "end")
         self.console.configure(state="disabled")
-    # ========== Code pour afficher les prints dans l'app FIN
 
-    # ===== DÉBUT AJOUT — méthodes de la section Calibration (UI principale) =====
+    # ===== méthodes de la section Calibration (UI principale) =====
     def _create_calibration_section(self, parent):
-        """Crée la section Calibration dans la fenêtre principale."""
+        # Crée la section Calibration dans la fenêtre principale
         cal_frame = ttk.LabelFrame(parent, text="Calibration", padding=10)
         cal_frame.pack(fill="x", pady=5)
 
@@ -505,7 +474,7 @@ class App:
         row3.pack(fill="x", pady=2)
         ttk.Label(row3, text=f"ADC : {masse.ADC_BITS} bits (0 – 5 V)").pack(side="left")
 
-        # ===== DÉBUT AJOUT — sélection du modèle de calibration =====
+        # ===== sélection du modèle de calibration =====
         row_model = ttk.Frame(cal_frame)
         row_model.pack(fill="x", pady=2)
         ttk.Label(row_model, text="Modèle de calibration :").pack(side="left")
@@ -526,7 +495,6 @@ class App:
         )
         model_combo.pack(side="left", padx=5)
         model_combo.bind("<<ComboboxSelected>>", self._on_model_changed)
-        # ===== FIN AJOUT — sélection du modèle de calibration =====
 
         # Ligne boutons
         btn_row = ttk.Frame(cal_frame)
@@ -571,7 +539,7 @@ class App:
         self.cal_graph_frame.pack(side="left", fill="both", expand=True, padx=5)
 
     def _scroll_num_masses(self, event):
-        """Molette sur le champ nombre de masses."""
+        # Molette sur le champ nombre de masses
         current = self.cal_num_masses.get()
         if event.delta > 0:
             self.cal_num_masses.set(current + 1)
@@ -579,16 +547,16 @@ class App:
             self.cal_num_masses.set(current - 1)
 
     def _scroll_avg_time(self, event):
-        """Molette sur le champ temps de moyennage."""
+        # Molette sur le champ temps de moyennage
         current = self.cal_avg_time.get()
         if event.delta > 0:
             self.cal_avg_time.set(current + 500)
         elif event.delta < 0 and current > 1000:
             self.cal_avg_time.set(current - 500)
 
-    # ===== DÉBUT AJOUT — changement de modèle de calibration =====
+    # ===== changement de modèle de calibration =====
     def _on_model_changed(self, event=None):
-        """Appelée quand l'utilisateur change le modèle de calibration."""
+        # Appelée quand l'utilisateur change le modèle de calibration
         selected_label = self.cal_model_var.get()
         self.cal_model = self.cal_model_labels[selected_label]
         # Recalculer la tare avec le nouveau modèle
@@ -601,10 +569,8 @@ class App:
         self.min_stable_time = self.cal_avg_time.get() / 1000
         print(f"Nouveau temps de moyennage set à {self.min_stable_time} secondes")
 
-    # ===== FIN AJOUT — changement de modèle de calibration =====
-
     def _launch_calibration(self):
-        """Ouvre la fenêtre de calibration et démarre le processus."""
+        # Ouvre la fenêtre de calibration et démarre le processus
         self.save_calib = True
         print("Début calibration")
         if not self.ser and not self.sim_mode:
@@ -639,7 +605,7 @@ class App:
         self._open_calibration_window()
 
     def _open_calibration_window(self):
-        """Crée et affiche la fenêtre dédiée à la calibration."""
+        # Crée et affiche la fenêtre dédiée à la calibration
         self.cal_window = tk.Toplevel(self.root)
         self.cal_window.title("Calibration en cours")
         self.cal_window.geometry("400x300")
@@ -705,7 +671,7 @@ class App:
         self._cal_update_display()
 
     def _cal_update_display(self):
-        """Met à jour l'affichage de la fenêtre de calibration."""
+        # Met à jour l'affichage de la fenêtre de calibration
         if self.cal_window is None:
             return
 
@@ -733,7 +699,7 @@ class App:
         self.cal_status.set("En attente de la masse sur le plateau...")
 
     def _cal_checkbox_changed(self):
-        """Appelée quand la case 'Nouvelle masse déposée' change d'état."""
+        # Appelée quand la case 'Nouvelle masse déposée' change d'état
         if self.cal_checkbox_var.get():
             # Case cochée → signaler à masse.py de commencer la collecte
             self.cal_checkbox.config(state="disabled")
@@ -743,7 +709,7 @@ class App:
             self._cal_poll_next_ready()
 
     def _cal_poll_next_ready(self):
-        """Vérifie périodiquement si nextMasse est True."""
+        # Vérifie périodiquement si nextMasse est True
         if self.cal_window is None:
             return
 
@@ -761,7 +727,7 @@ class App:
             self.cal_window.after(100, self._cal_poll_next_ready)
 
     def _cal_poll_update_mean(self):
-        """Met à jour l'affichage de la moyenne tant que la collecte continue."""
+        # Met à jour l'affichage de la moyenne tant que la collecte continue
         if self.cal_window is None:
             return
         if not masse.nextMasse:
@@ -776,7 +742,7 @@ class App:
         self.cal_window.after(200, self._cal_poll_update_mean)
 
     def _cal_next(self):
-        """Bouton Next / End pressé."""
+        # Bouton Next / End pressé
         print("Next masse de calibration")
         if not masse.nextMasse:
             return
@@ -802,13 +768,13 @@ class App:
             self._cal_update_display()
 
     def _cal_previous(self):
-        """Bouton Previous pressé."""
+        # Bouton Previous pressé
         print("Masse de calibration précédente")
         masse.go_previous()
         self._cal_update_display()
 
     def _cal_stop(self):
-        """Bouton Stop pressé ou fermeture de la fenêtre."""
+        # Bouton Stop pressé ou fermeture de la fenêtre
         print("Arrêt de la calibration")
         masse.stop_collecting()
 
@@ -817,14 +783,13 @@ class App:
             self.cal_window = None
 
     def _cal_finish(self):
-        """Calibration terminée. Sauvegarde, ferme la fenêtre, affiche les résultats."""
+        # Calibration terminée. Sauvegarde, ferme la fenêtre, affiche les résultats
         cal_path = masse.save_calibration()
         print(f"Calibration sauvegardée : {cal_path}")
 
-        # ===== DÉBUT AJOUT — recharger le dictionnaire de calibration =====
+        # ===== recharger le dictionnaire de calibration =====
         self.cal_dict = masse.load_calibration()
         self.tare_masse = 0.0  # Reset tare après nouvelle calibration
-        # ===== FIN AJOUT — recharger le dictionnaire de calibration =====
 
         if self.cal_window is not None:
             self.cal_window.destroy()
@@ -833,7 +798,7 @@ class App:
         self._display_calibration_results()
 
     def _cal_recalcul_resultat(self):
-        """Bouton pour recalculer les résultats d'une calibration déjà existante"""
+        # Bouton pour recalculer les résultats d'une calibration déjà existante
         self.save_calib = False
         print("Recalcul des résultats")
         self.cal_dict = masse.load_calibration()
@@ -909,7 +874,7 @@ class App:
             canvas.draw()
             canvas.get_tk_widget().pack(fill="both", expand=True)
 
-            # ===== DÉBUT AJOUT — graphique des résidus =====
+            # ===== graphique des résidus =====
 
             # Frame pour le graphique des résidus + checkboxes
             residual_frame = ttk.LabelFrame(
@@ -948,12 +913,11 @@ class App:
 
             self._redraw_residuals()
 
-            # ===== FIN AJOUT — graphique des résidus =====
 
-    # ===== DÉBUT AJOUT — dessin du graphique des résidus =====
+    # ===== dessin du graphique des résidus =====
 
     def _redraw_residuals(self):
-        """Redessine le graphique des résidus selon les checkboxes cochées."""
+        # Redessine le graphique des résidus selon les checkboxes cochées
         # Vider le canvas précédent
         for w in self._res_canvas_frame.winfo_children():
             w.destroy()
@@ -1006,14 +970,10 @@ class App:
 
         canvas.get_tk_widget().pack(fill="both", expand=True)
 
-    # ===== FIN AJOUT — dessin du graphique des résidus =====
-
-    # ===== FIN AJOUT — méthodes de la section Calibration =====
-
-    # ===== DÉBUT AJOUT — mise à jour continue de l'affichage masse =====
+    # ===== mise à jour continue de l'affichage masse =====
 
     def _format_masse(self, masse_g):
-        """Formate une masse en g et kg avec précision 0.1 g."""
+        # Formate une masse en g et kg avec précision 0.1 g
         masse_kg = masse_g / 1000.0
         return f"{masse_g:.1f} g  /  {masse_kg:.4f} kg"
 
@@ -1082,17 +1042,16 @@ class App:
 
         self.root.after(self.masseRT_affichage, self._update_masse_display)
 
-    # ===== FIN AJOUT — mise à jour continue de l'affichage masse =====
 
-    # ===== DÉBUT AJOUT — méthodes de défilement (scroll) =====
+    # ===== méthodes de défilement (scroll) =====
 
     def _on_frame_configure(self, event):
-        """Met à jour la zone de défilement quand le contenu change de taille."""
+        # Met à jour la zone de défilement quand le contenu change de taille
         self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all"))
         self._update_scrollbar_visibility()
 
     def _on_canvas_configure(self, event):
-        """Ajuste le contenu quand la fenêtre est redimensionnée."""
+        # Ajuste le contenu quand la fenêtre est redimensionnée
         canvas_w = event.width
         canvas_h = event.height
         frame_w = self.scroll_frame.winfo_reqwidth()
@@ -1105,7 +1064,7 @@ class App:
         self._update_scrollbar_visibility()
 
     def _update_scrollbar_visibility(self):
-        """Affiche ou cache les scrollbars selon si le contenu dépasse la fenêtre."""
+        # Affiche ou cache les scrollbars selon si le contenu dépasse la fenêtre
         self.scroll_canvas.update_idletasks()
         bbox = self.scroll_canvas.bbox("all")
         if not bbox:
@@ -1129,7 +1088,7 @@ class App:
             self.h_scrollbar.pack(side="bottom", fill="x")
 
     def _on_mousewheel_y(self, event):
-        """Défilement vertical avec la molette de la souris."""
+        # Défilement vertical avec la molette de la souris
         # Vérifier si le scroll est nécessaire
         bbox = self.scroll_canvas.bbox("all")
         if not bbox:
@@ -1147,7 +1106,7 @@ class App:
             self.scroll_canvas.yview_scroll(3, "units")
 
     def _on_mousewheel_x(self, event):
-        """Défilement horizontal avec Shift + molette."""
+        # Défilement horizontal avec Shift + molette
         bbox = self.scroll_canvas.bbox("all")
         if not bbox:
             return
@@ -1161,7 +1120,6 @@ class App:
         elif event.num == 5:
             self.scroll_canvas.xview_scroll(3, "units")
 
-    # ===== FIN AJOUT — méthodes de défilement (scroll) =====
 
     # ================= SERIAL =================
     def connect(self):
@@ -1171,7 +1129,7 @@ class App:
         #self.send_pid_pos()
         #self.send_pid_cur()
 
-        # ===== DÉBUT AJOUT — connexion en mode simulation =====
+        # ===== connexion en mode simulation =====
         if self.sim_var.get():
             self.sim_mode = True
             self.ser = None
@@ -1179,21 +1137,19 @@ class App:
             self.sim_thread = threading.Thread(target=self._sim_reader, daemon=True)
             self.sim_thread.start()
             print("Simulation activée")
-            # ===== DÉBUT AJOUT — init mesure pour usage hors calibration =====
+            # ===== init mesure pour usage hors calibration =====
             masse.init_measurement(
             avg_time_ms=self.cal_avg_time.get(),
             get_courant_fn=lambda: self.last_courant,
             get_flag_fn=lambda: self.stable,
             )
-            # ===== FIN AJOUT =====
             return
-        # ===== FIN AJOUT — connexion en mode simulation =====
 
         self.sim_mode = False
         self.ser = serial.Serial(self.port.get(), BAUDRATE, timeout=0)
         time.sleep(2)
         threading.Thread(target=self.reader, daemon=True).start()
-        # ===== DÉBUT AJOUT — init mesure pour usage hors calibration =====
+        # ===== init mesure pour usage hors calibration =====
         masse.init_measurement(
         avg_time_ms=self.cal_avg_time.get(),
         get_courant_fn=lambda: self.last_courant,
@@ -1204,7 +1160,6 @@ class App:
         self.send_pid_pos()
         self.send_pid_cur()
         #self.tare()
-        # ===== FIN AJOUT =====
 
     def reader(self):
         while True:
@@ -1244,11 +1199,6 @@ class App:
             self.pos_somme += self.lissage_pos
             self.pos_count += 1
             pos_avg = self.pos_somme / self.pos_count
-
-            """try:
-                current_pos_ref = float(self.pos_ref)
-            except ValueError:
-                current_pos_ref = 0.0 # Sécurité si le champ est vide"""
 
             current_pos_ref = float(self.pos_ref)
             erreur_pos = abs(pos_avg - current_pos_ref)
@@ -1349,16 +1299,16 @@ class App:
         self.avgCourantStable_value = self.courantStable_somme / self.courantStable_nbElem
     
     def resetMoyennageCourant(self):
-        """Réinitialise le buffer de calcul pour repartir à zéro après un mouvement."""
+        # Réinitialise le buffer de calcul pour repartir à zéro après un mouvement
         # self.courantStable_buffer.clear()
         self.avgCourantStable_value = None
         self.courantStable_nbElem  = 0
         self.courantStable_somme = 0
 
-    # ===== DÉBUT AJOUT — simulation Arduino =====
+    # ===== simulation Arduino =====
 
     def _toggle_sim(self):
-        """Active/désactive le mode simulation (avant de connecter)."""
+        # Active/désactive le mode simulation (avant de connecter)
         if self.sim_var.get():
             self.port.config(state="disabled")
         else:
@@ -1425,23 +1375,20 @@ class App:
             time.sleep(0.020)  # 50 Hz, comme le main.cpp (toggleCounter % 10)
 
     def _sim_update_ui(self, pos, cur, cmd_pos, cmd_cur, flag):
-        """Met à jour l'interface depuis le thread principal (thread-safe)."""
-        # ===== DÉBUT MODIFICATION — affichage géré par _update_masse_display =====
+        # Met à jour l'interface depuis le thread principal (thread-safe)
+        # ===== affichage géré par _update_masse_display =====
         if flag:
             self.canvas.itemconfig(self.led, fill="green")
         else:
             self.canvas.itemconfig(self.led, fill="red")
-        # ===== FIN MODIFICATION =====
 
-    # ===== FIN AJOUT — simulation Arduino =====
 
     # ================= COMMANDES =================
     def send(self, b):
-        # ===== DÉBUT AJOUT — envoi en mode simulation =====
+        # ===== envoi en mode simulation =====
         if self.sim_mode:
             self._sim_handle_command(b)
             return
-        # ===== FIN AJOUT — envoi en mode simulation =====
         if self.ser:
             self.ser.write(b)
             
@@ -1449,9 +1396,9 @@ class App:
         print("Reset PID")
         self.send(b'Z')
 
-    # ===== DÉBUT AJOUT — interprétation commandes en simulation =====
+    # ===== interprétation commandes en simulation =====
     def _sim_handle_command(self, data):
-        """Interprète les commandes envoyées à l'Arduino en mode simulation."""
+        # Interprète les commandes envoyées à l'Arduino en mode simulation
         if not data:
             return
         cmd = data[0:1]
@@ -1472,7 +1419,6 @@ class App:
             self.sim_pwm = 50
             self.sim_flag_counter = 0
         # S, E, G, H : on ignore silencieusement en simulation
-    # ===== FIN AJOUT — interprétation commandes en simulation =====
 
     def send_ref(self):
         self.pos_ref = int(self.box_pos_ref.get())
@@ -1508,7 +1454,7 @@ class App:
         self.send(b'M' + bytes([val]))
 
 
-    # ===== DÉBUT MODIFICATION — tare basée sur la masse =====
+    # ===== tare basée sur la masse =====
     def tare(self):
         #self.offset = self.avg_value
         self.offset = self.avgCourantStable_value
@@ -1525,7 +1471,6 @@ class App:
                 print(f"Tare avec {self.tare_masse} gramme")
         else:
             self.tare_masse = 0.0
-    # ===== FIN MODIFICATION — tare basée sur la masse =====
 
 
     def start(self):
@@ -1699,7 +1644,7 @@ class App:
 
 
     def _close_plot(self):
-            """Fermeture propre de la fenêtre graphique."""
+            # Fermeture propre de la fenêtre graphique
             self.plot_running = False
             if hasattr(self, 'plot_window') and self.plot_window:
                 try:
@@ -1785,25 +1730,22 @@ class App:
 
     # ================= EXIT =================
     def on_close(self):
-        # ========== Code pour afficher les prints dans l'app DEBUT
+        # ========== Code pour afficher les prints dans l'app
         try:
             sys.stdout = self._stdout
         except Exception:
             pass
-        # ========== Code pour afficher les prints dans l'app FIN
 
-        # ===== DÉBUT AJOUT — nettoyage calibration à la fermeture =====
+        # ===== nettoyage calibration à la fermeture =====
         masse.stop_collecting()
         if self.cal_window is not None:
             try:
                 self.cal_window.destroy()
             except Exception:
                 pass
-        # ===== FIN AJOUT — nettoyage calibration à la fermeture =====
 
-        # ===== DÉBUT AJOUT — arrêt simulation =====
+        # ===== arrêt simulation =====
         self.sim_running = False
-        # ===== FIN AJOUT — arrêt simulation =====
 
         if self.ser:
             try:
