@@ -41,7 +41,7 @@ void setup_ADC()
 
     // Compare Match A : OCR1A = (F_CPU / (prescaler * f)) - 1
     // F_CPU = 16 MHz, f = 5 kHz, prescaler = 8
-    // OCR1A = 16,000,000 / (8*10000) - 1 = 199
+    // OCR1A = 16,000,000 / (8*5000) - 1 = 399
     OCR1A = 399;
 
     // Prescaler = 8
@@ -89,13 +89,6 @@ ISR(ADC_vect)
     {
         filtreCourant(adcValues[activeChannel]);
     }
-
-    // toggleCounter++;
-    // if (toggleCounter >= 5000)
-    // {
-    //     digitalWrite(13, !digitalRead(13));
-    //     toggleCounter = 0;
-    // }
 }
 
 void filtrePosition(uint16_t newPosition)

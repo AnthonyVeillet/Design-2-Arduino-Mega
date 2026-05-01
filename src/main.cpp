@@ -22,7 +22,6 @@ void setup()
   sei(); // réactiver interruptions
 
   delay(10); // Laisser temps à l'ADC pour première acquisition
-  tare();
 
   setupTimerPID();
 }
@@ -120,7 +119,6 @@ void loop()
     Serial.write((uint8_t *)&cur, 2);
     Serial.write((uint8_t *)&cmd_pos, 2);
     Serial.write((uint8_t *)&cmd_cur, 2);
-    Serial.write(mesureValide ? 1 : 0);
   }
 
   toggleCounter++;
