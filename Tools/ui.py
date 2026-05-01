@@ -376,7 +376,7 @@ class App:
         self.box_masseRT_affichage = ttk.Entry(row1_action2, width=10)
         self.box_masseRT_affichage.insert(0, str(self.masseRT_affichage))
         self.box_masseRT_affichage.pack(side="left", padx=5)
-        ttk.Button(row1_action2, text="Update Hz affichage masse (ms)", command=self.update_affichage_masseRT).pack(side="left", padx=5)
+        ttk.Button(row1_action2, text="Update affichage masse (ms)", command=self.update_affichage_masseRT).pack(side="left", padx=5)
 
         self.box_PLOT_WINDOW_SECONDS = ttk.Entry(row2_action2, width=10)
         self.box_PLOT_WINDOW_SECONDS.insert(0, str(self.PLOT_WINDOW_SECONDS))
